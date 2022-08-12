@@ -1,0 +1,14 @@
+This repository is for various 6502-related assembly programs.
+
+I'm going to be following Ben Eater's You Tube video series, with initially
+one of his kits as the basis of my hardware, and then adding to it as I learn more..
+
+My intention is to learn enough 6502 hardware and software to be able to 
+build and program a small 6502 computer for a variety of tasks... projects will 
+spring to mind once I delve deeper.
+
+I've included tools needed - the VASM assembler and the MINIPRO eeprom programmer
+in this repository, just so I can find them again if I need to.
+
+-- John 12/8/22
+
