@@ -13,11 +13,9 @@ E  = %01000000
 RW = %00100000
 RS = %00010000
 
-SHIFT = %10000000
-
   .org $8000
 
-BASE_ADDRESS = $3000
+BASE_ADDRESS = $0000
 
 DUMP_POINTER = $00
 
@@ -25,9 +23,13 @@ MESSAGE_POINTER = $04
 
 INKEY = $02
 
-LO_ASCII = $06
-HI_ASCII = $08
-BYTE = $0A
+LO_LO_ASCII = $06 ; 4 byte rolling store of entered key-press characters in ASCII
+LO_HI_ASCII = $07
+HI_LO_ASCII = $08
+HI_HI_ASCII = $09
+
+LO_BYTE = $0A         ; binary representation of entered key-presses
+HI_BYTE = LO_BYTE + 1 ;  
 
 splash: .asciiz "mon:$ "
 
@@ -61,14 +63,10 @@ reset:
   ldy #$00
   lda #$00
 
-
-
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
   sta MESSAGE_POINTER + 1
-
-
 
   lda #<BASE_ADDRESS
   sta DUMP_POINTER
@@ -77,13 +75,20 @@ reset:
 
   jsr new_address
 
+
+; main loop
 loop:
   jsr scan      ; sets PORTA "row" pins to HIGH to allow for Interrupt detection via diode OR on "column" pins -> CB1
   jmp loop
 
+
+;;;;;;;;;;;;; FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
+
+; update screen when new memory location is selected
 new_address:
   
-
   lda #%00000001 ; Clear display
   jsr lcd_instruction
 
@@ -101,11 +106,6 @@ print_address:
   lda #" "
   jsr print_char
 
-
-;new_line:
-;  lda #%10101001
-;  jsr lcd_instruction
-
 print_data:
 
   lda (DUMP_POINTER),y
@@ -114,20 +114,54 @@ print_data:
   jsr print_char
   lda (DUMP_POINTER),y
   jsr print_char
-  ;iny
-  ;cpy #$08
-  ;bne line2
-
 
 message_end:
-  jsr print   ; add second line cursor after re-writing the top line
+  jsr print   ; add second line (cursor) after re-writing the top line
   rts
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; display 8 bytes of data for a "block" of memory
+block_address:
+  
+  lda #%00000001 ; Clear display
+  jsr lcd_instruction
+
+  ldy #$00
+  ldx #$00
+
+print_block_address:
+  lda #"$"
+  jsr print_char
+  lda DUMP_POINTER + 1
+  jsr bintohex
+  lda DUMP_POINTER
+  jsr bintohex
+
+  lda #%10101001
+  jsr lcd_instruction
+
+print_block:
+
+  lda (DUMP_POINTER),y
+  jsr bintohex
+  lda (DUMP_POINTER),y
+  iny
+  cpy #$08
+  bne print_block
+
+
+block_message_end:
+  rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; re-draw line 2 cursor
 print:
-  ;lda #%00000001 ; Clear display
-  ;jsr lcd_instruction
-new_line:
+  
   lda #%10101001
   jsr lcd_instruction
 
@@ -150,7 +184,7 @@ scan:             ; set ROW keypad outputs high as a source for triggering inter
   rts
 
 
-; convert a 8-bit binary value 00000000 -> 11111111 to its ASCII character using a simple lookup table
+; convert a binary value 00000000 -> 00001111 ($00 to $0F) to its ASCII character using a simple lookup table
 bintohex:
   pha
   lsr
@@ -295,9 +329,11 @@ decrement_address:
   lda DUMP_POINTER
   sbc #$01
   sta DUMP_POINTER
+  sta LO_BYTE
   lda DUMP_POINTER + 1
   sbc #$00
   sta DUMP_POINTER + 1
+  sta HI_BYTE
 dec_ok:
   rts
 
@@ -308,14 +344,18 @@ increment_address:
   lda DUMP_POINTER
   adc #$01
   sta DUMP_POINTER
+  sta LO_BYTE
   bcc inc_ok
   inc DUMP_POINTER + 1
+  lda DUMP_POINTER + 1
+  sta HI_BYTE
 inc_ok:
   rts
 
 
-ascii_byte:   ; take two ascii characters representing HEX digits and convert to a single 8-bit binary byte $00-$FF
-  lda HI_ASCII
+ascii_byte:   ; take four ascii characters representing HEX digits and convert tp TWO 8-bit binary bytes $00-$FF
+  
+  lda LO_HI_ASCII
 
   jsr ascii_bin
   clc
@@ -323,16 +363,30 @@ ascii_byte:   ; take two ascii characters representing HEX digits and convert to
   asl
   asl
   asl
-  sta BYTE
+  sta LO_BYTE
 
-  lda LO_ASCII
+  lda LO_LO_ASCII
   
   jsr ascii_bin
-  ora BYTE
-  sta BYTE
-  rts
-  ; number or letter?
+  ora LO_BYTE
+  sta LO_BYTE
 
+  lda HI_HI_ASCII
+  jsr ascii_bin
+  clc
+  asl
+  asl
+  asl
+  asl
+  sta HI_BYTE
+
+  lda HI_LO_ASCII
+  
+  jsr ascii_bin
+  ora HI_BYTE
+  sta HI_BYTE
+  rts
+  
 ascii_bin:
   clc  
   cmp #$41
@@ -372,17 +426,16 @@ irq:
   ;jsr print_char
   lda PORTB       ; check for SHIFT/INSTRUCTION button
   and #%10000000
-  bne print_new_char    ; not set = leave
+  ;bne print_new_char    ; not set = leave
+  beq check_a ; done this way to get around the limit in size of branch jumps....
+  jmp handle_new_char
 
+; choose action of "SHIFTed" key-press
 check_a:
-  lda INKEY       ; set = check last keypress
-  cmp #"A"        ; "A" with "Shift"?
-  bne check_b     ; no? = check for B
-  ;lda #<message_a
-  ;sta MESSAGE_POINTER
-  ;lda #>message_a
-  ;sta MESSAGE_POINTER + 1
-  ;jsr print
+  lda INKEY       
+  cmp #"A"
+  ; move up one memory address and display contents
+  bne check_b     
   jsr increment_address
   jsr new_address
   jmp exit_irq
@@ -390,12 +443,8 @@ check_a:
 check_b:
   lda INKEY
   cmp #"B"
+  ; move down one memory address and display contents
   bne check_c
-  ;lda #<message_b
-  ;sta MESSAGE_POINTER
-  ;lda #>message_b
-  ;sta MESSAGE_POINTER + 1
-  ;jsr print
   jsr decrement_address
   jsr new_address
   jmp exit_irq
@@ -403,30 +452,36 @@ check_b:
 check_c:
   lda INKEY
   cmp #"C"
+  ; clear screen back to normal display
   bne check_d
+  lda #%00000001
+  jsr lcd_instruction
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
   sta MESSAGE_POINTER + 1
-  jsr print
+  jsr new_address
   jmp exit_irq
 
 check_d:
   lda INKEY
   cmp #"D"
+  ; move monitor to entered 4-digit memory address
   bne check_e
-  lda #%00000001 ; Clear display
-  jsr lcd_instruction
-  jmp $3000
+  lda LO_BYTE
+  sta DUMP_POINTER
+  lda HI_BYTE
+  sta DUMP_POINTER + 1
+  jsr new_address
+  jsr print
   jmp exit_irq
-
-
 
 check_e:
   lda INKEY
   cmp #"E"
+  ; insert (POKE) byte of data in to current memory address, then increment to next address
   bne check_f
-  lda BYTE
+  lda LO_BYTE
   ldy #$00
   sta (DUMP_POINTER),y
   jsr increment_address
@@ -435,22 +490,37 @@ check_e:
   jmp exit_irq
 
 check_f:
+  lda INKEY
+  cmp #"F"
+  ; show 8-byte wide block of memory
+  bne check_1
+  ldy #$00
+  lda LO_BYTE
+  sta DUMP_POINTER
+  lda HI_BYTE
+  sta DUMP_POINTER + 1
+  jsr block_address
+  ;jsr print
   jmp exit_irq
 
+check_1:
+  ; run USER code from $3000
+  jmp $3000
 
-print_new_char:
-  lda LO_ASCII  ; retrieve last character and ...
-  sta HI_ASCII  ; move it to high_nibble temp store
-  lda INKEY     ; get the new ASCII value and... 
-  sta LO_ASCII  ; store in low_nibble temp store
-  jsr print_char; and print it on LCD
+handle_new_char:
+  lda HI_LO_ASCII  ; shuffle 4 bytes of ASCII character data as each new
+  sta HI_HI_ASCII  ; character is typed
+  lda LO_HI_ASCII 
+  sta HI_LO_ASCII
+  lda LO_LO_ASCII
+  sta LO_HI_ASCII
+  lda INKEY       ; get the new ASCII keypress value and... 
+  sta LO_LO_ASCII ; store in low_nibble temp store
+  jsr print_char  ; and print it on LCD
   
-  jsr ascii_byte
-
-
+  jsr ascii_byte  ; convert the rolling 4-byte ASCII character data into two binary bytes
 
 exit_irq:
-  
   
 ; de-bounce delay before resetting interrupt
   ldy #$FF ; tweak the count-down to optimise debounce
@@ -462,9 +532,6 @@ delay:
   bne delay
 
   bit PORTB     ; clear VIA interrupt by reading from PORTB - using the interrupt source CB1 (should move to CA1 on PORTA!)
-
-  ;lda #$00
-  ;sta PORTA
 
 ; restore registers
   pla
