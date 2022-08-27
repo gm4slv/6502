@@ -23,13 +23,9 @@ MESSAGE_POINTER = $04
 
 INKEY = $02
 
-LO_LO_ASCII = $06 ; 4 byte rolling store of entered key-press characters in ASCII
-LO_HI_ASCII = $07
-HI_LO_ASCII = $08
-HI_HI_ASCII = $09
+ASCII = $06        ; 4-bytes rolling store of entered key-press characters in ASCII
 
-LO_BYTE = $0A         ; binary representation of entered key-presses
-HI_BYTE = LO_BYTE + 1 ;  
+BYTE = $0A        ; binary representation of entered key-presses - 2 bytes
 
 splash: .asciiz "mon:$ "
 
@@ -37,10 +33,10 @@ reset:
   ldx #$ff
   txs
   
-  lda #$92  ; IRQ set CB1 enabled
+  lda #$82  ; IRQ set CA1 enabled
   sta IER
 
-  lda #$10  ; CB1 active high-transition 
+  lda #$01  ; CA1 active high-transition 
   sta PCR
 
   cli      ; interrupts ON
@@ -329,11 +325,11 @@ decrement_address:
   lda DUMP_POINTER
   sbc #$01
   sta DUMP_POINTER
-  sta LO_BYTE
+  sta BYTE
   lda DUMP_POINTER + 1
   sbc #$00
   sta DUMP_POINTER + 1
-  sta HI_BYTE
+  sta BYTE + 1
 dec_ok:
   rts
 
@@ -344,18 +340,18 @@ increment_address:
   lda DUMP_POINTER
   adc #$01
   sta DUMP_POINTER
-  sta LO_BYTE
+  sta BYTE
   bcc inc_ok
   inc DUMP_POINTER + 1
   lda DUMP_POINTER + 1
-  sta HI_BYTE
+  sta BYTE + 1
 inc_ok:
   rts
 
 
 ascii_byte:   ; take four ascii characters representing HEX digits and convert tp TWO 8-bit binary bytes $00-$FF
   
-  lda LO_HI_ASCII
+  lda ASCII + 1
 
   jsr ascii_bin
   clc
@@ -363,28 +359,28 @@ ascii_byte:   ; take four ascii characters representing HEX digits and convert t
   asl
   asl
   asl
-  sta LO_BYTE
+  sta BYTE
 
-  lda LO_LO_ASCII
+  lda ASCII
   
   jsr ascii_bin
-  ora LO_BYTE
-  sta LO_BYTE
+  ora BYTE
+  sta BYTE
 
-  lda HI_HI_ASCII
+  lda ASCII + 3
   jsr ascii_bin
   clc
   asl
   asl
   asl
   asl
-  sta HI_BYTE
+  sta BYTE + 1
 
-  lda HI_LO_ASCII
+  lda ASCII + 2
   
   jsr ascii_bin
-  ora HI_BYTE
-  sta HI_BYTE
+  ora BYTE + 1
+  sta BYTE + 1
   rts
   
 ascii_bin:
@@ -423,10 +419,8 @@ irq:
   ; do interrupt-driven things
   jsr get_key
   sta INKEY       ; put the ASCII value of input into RAM ( $00 ) 
-  ;jsr print_char
   lda PORTB       ; check for SHIFT/INSTRUCTION button
   and #%10000000
-  ;bne print_new_char    ; not set = leave
   beq check_a ; done this way to get around the limit in size of branch jumps....
   jmp handle_new_char
 
@@ -468,9 +462,9 @@ check_d:
   cmp #"D"
   ; move monitor to entered 4-digit memory address
   bne check_e
-  lda LO_BYTE
+  lda BYTE
   sta DUMP_POINTER
-  lda HI_BYTE
+  lda BYTE + 1
   sta DUMP_POINTER + 1
   jsr new_address
   jsr print
@@ -481,7 +475,7 @@ check_e:
   cmp #"E"
   ; insert (POKE) byte of data in to current memory address, then increment to next address
   bne check_f
-  lda LO_BYTE
+  lda BYTE
   ldy #$00
   sta (DUMP_POINTER),y
   jsr increment_address
@@ -495,12 +489,11 @@ check_f:
   ; show 8-byte wide block of memory
   bne check_1
   ldy #$00
-  lda LO_BYTE
+  lda BYTE
   sta DUMP_POINTER
-  lda HI_BYTE
+  lda BYTE + 1
   sta DUMP_POINTER + 1
   jsr block_address
-  ;jsr print
   jmp exit_irq
 
 check_1:
@@ -508,14 +501,14 @@ check_1:
   jmp $3000
 
 handle_new_char:
-  lda HI_LO_ASCII  ; shuffle 4 bytes of ASCII character data as each new
-  sta HI_HI_ASCII  ; character is typed
-  lda LO_HI_ASCII 
-  sta HI_LO_ASCII
-  lda LO_LO_ASCII
-  sta LO_HI_ASCII
+  lda ASCII + 2
+  sta ASCII + 3
+  lda ASCII + 1
+  sta ASCII + 2
+  lda ASCII
+  sta ASCII + 1
   lda INKEY       ; get the new ASCII keypress value and... 
-  sta LO_LO_ASCII ; store in low_nibble temp store
+  sta ASCII
   jsr print_char  ; and print it on LCD
   
   jsr ascii_byte  ; convert the rolling 4-byte ASCII character data into two binary bytes
@@ -523,7 +516,7 @@ handle_new_char:
 exit_irq:
   
 ; de-bounce delay before resetting interrupt
-  ldy #$FF ; tweak the count-down to optimise debounce
+  ldy #$55 ; tweak the count-down to optimise debounce
   ldx #$ff ;
 delay:
   dex
