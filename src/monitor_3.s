@@ -27,7 +27,6 @@ ASCII = $06        ; 4-bytes rolling store of entered key-press characters in AS
 
 BYTE = $0A        ; binary representation of entered key-presses - 2 bytes
 
-splash: .asciiz "mon:$ "
 
 reset:
   ldx #$ff
@@ -197,7 +196,6 @@ bintohex:
   jsr print_char
   rts
 
-hexascii: .byte "0123456789ABCDEF"
 
 
 lcd_wait:
@@ -281,7 +279,6 @@ print_char:
   rts
 
 
-keypad_array: .byte "?DCBAF9630852E741"
 
 get_key:
 
@@ -535,6 +532,9 @@ delay:
 
   rti
 
+keypad_array: .byte "?DCBAF9630852E741"
+hexascii: .byte "0123456789ABCDEF"
+splash: .asciiz "mon:$ "
 
 ; Reset/IRQ vectors
   .org $fffa
