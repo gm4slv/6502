@@ -48,7 +48,7 @@ reset:
   jsr lcd_init
   lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
   jsr lcd_instruction
-  lda #%00001110 ; Display on; cursor on; blink off
+  lda #%00001111 ; Display on; cursor on; blink on
   jsr lcd_instruction
   lda #%00000110 ; Increment and shift cursor; don't shift display
   jsr lcd_instruction
@@ -345,6 +345,32 @@ increment_address:
 inc_ok:
   rts
 
+increment_block:
+  clc
+  lda DUMP_POINTER
+  adc #$08
+  sta DUMP_POINTER
+  sta BYTE
+  lda DUMP_POINTER + 1
+  adc #$00
+  sta DUMP_POINTER + 1
+  sta BYTE + 1
+  rts
+
+
+decrement_block:
+
+  sec
+  lda DUMP_POINTER
+  sbc #$08
+  sta DUMP_POINTER
+  sta BYTE
+  lda DUMP_POINTER + 1
+  sbc #$00
+  sta DUMP_POINTER + 1
+  sta BYTE + 1
+  rts
+
 
 ascii_byte:   ; take four ascii characters representing HEX digits and convert tp TWO 8-bit binary bytes $00-$FF
   
@@ -494,8 +520,33 @@ check_f:
   jmp exit_irq
 
 check_1:
+  lda INKEY
+  cmp #"1"
   ; run USER code from $3000
+  bne check_3
   jmp $3000
+
+check_3:
+  lda INKEY
+  cmp #"3"
+  bne check_6
+  ldy #$00
+  jsr increment_block
+  jsr block_address
+  jmp exit_irq
+
+check_6:
+  lda INKEY
+  cmp #"6"
+  bne check_4
+  ldy #$00
+  jsr decrement_block
+  jsr block_address
+  jmp exit_irq
+
+check_4:
+  jmp exit_irq
+
 
 handle_new_char:
   lda ASCII + 2
