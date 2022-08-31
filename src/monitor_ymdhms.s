@@ -93,11 +93,8 @@ HEXB = $32 ; 2 bytes
 reset:
   ldx #$ff
   txs
-;; IFR Flags
-;; B7  B6  B5  B4  B3  B2  B1  B0
-;; IRQ TI1 TI2 CB1 CB2 SR CA1 CA2
   
-  lda #%11011010  ; T1, CA1 active
+  lda #%11000010  ; T1, CA1 active
   sta IER
   
 
@@ -201,6 +198,18 @@ clock_time:
   
   lda #%00000001 ; Clear display
   jsr lcd_instruction
+  lda DAY
+  jsr bintoascii
+  lda #"/"
+  jsr print_char
+  lda MO
+  jsr bintoascii
+  lda #"/"
+  jsr print_char
+  lda YR
+  jsr bintoascii
+  lda #%10101001
+  jsr lcd_instruction
   lda HRS
   jsr bintoascii
   lda #":"
@@ -211,10 +220,6 @@ clock_time:
   jsr print_char
   lda SECONDS
   jsr bintoascii
-  ;lda #":"
-  ;jsr print_char
-  ;lda CENTISEC
-  ;jsr bintoascii
   lda TICKS
   sta CLOCK_LAST
 exit_clock:
@@ -716,13 +721,13 @@ show_clock:
   
   bbs5 FLAGS, reset_bit5
   smb5 FLAGS
-  jmp exit_show_clock
+  jmp exit_cb2_handler
 
 reset_bit5:
 
   rmb5 FLAGS
 
-exit_show_clock:
+exit_cb2_handler:
   
   rts
   ;jmp debounce
@@ -736,54 +741,31 @@ show_block:
   
   bbs0 FLAGS, reset_bit0
   smb0 FLAGS
-  jmp exit_show_block
+  jmp exit_cb1_handler
 
 reset_bit0:
 
   rmb0 FLAGS
 
-exit_show_block:
+exit_cb1_handler:
 
   rts
   ;jmp debounce
 
-;debounce:
-;  ldx #$ff
-;  ldy #$ff
-;delay:
-;  nop
-;  dex
-;  bne delay
-;  dey
-;  bne delay
-;  rts  
+debounce:
+  ldx #$ff
+  ldy #$ff
+delay:
+  nop
+  dex
+  bne delay
+  dey
+  bne delay
+  rts  
   
 
 ;;;;;;;;;;;;;;;;;; INTERRUPT HANDLERS ;;;;;;;;;;;;;;;;;;;;
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;      CB1 : reset & restart timer
-;;
-
-cb1_handler:
-  stz HRS
-  stz MINUTES
-  stz SECONDS
-  smb5 FLAGS
-
-  rts
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;     CB2 : stop timer
-;;
-
-cb2_handler:
-  jsr show_clock
-  rts
-  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;                    MONITOR / KEYPAD 
@@ -982,44 +964,44 @@ inc_TOD:
 
   inc HRS
   lda HRS
-  cmp #100
+  cmp #24
   bmi end_TOD
   stz HRS
 
-  ;inc DAY
+  inc DAY
 
-  ;lda MO
-  ;cmp #2
-  ;bne notfeb
+  lda MO
+  cmp #2
+  bne notfeb
 
-  ;lda YR
-  ;and #%11111100
-  ;cmp YR
-  ;bne notfeb
+  lda YR
+  and #%11111100
+  cmp YR
+  bne notfeb
 
-  ;lda DAY
-  ;cmp #30
-  ;beq new_mo
-  ;pla
-  ;rts
-;notfeb:
-  ;phx
-  ;ldx MO
-  ;lda MO_DAYS_TABLE-1,x
-  ;plx
-  ;cmp DAY
-  ;bne end_TOD
-;new_mo:
-  ;lda #1
-  ;sta DAY
-  ;inc MO
-  ;lda MO
-  ;cmp #13
-  ;bne end_TOD
-  ;lda #1
-  ;sta MO
+  lda DAY
+  cmp #30
+  beq new_mo
+  pla
+  rts
+notfeb:
+  phx
+  ldx MO
+  lda MO_DAYS_TABLE-1,x
+  plx
+  cmp DAY
+  bne end_TOD
+new_mo:
+  lda #1
+  sta DAY
+  inc MO
+  lda MO
+  cmp #13
+  bne end_TOD
+  lda #1
+  sta MO
 
-  ;inc YR
+  inc YR
 end_TOD:
   rts
 
@@ -1063,28 +1045,17 @@ irq:
 test_timer1:
   asl           ; shift IFR left twice puts the TI1 bit into CARRY....
   asl
-  bcc test_cb1  ; carry clear = next test
+  bcc test_ca1  ; carry clear = next test
   bit T1CL      ; clear not clear = handle the TIMER interrupt
   jsr timer1_handler
   jmp exit_irq
 
-test_cb1:
-  asl
-  asl
-  bcc test_cb2
-  bit PORTB
-  jsr cb1_handler
-  jmp exit_irq
-
-test_cb2:
-  asl
-  bcc test_ca1
-  bit PORTB
-  jsr cb2_handler
-  jmp exit_irq
 
 test_ca1:
   asl           ; shift CA1 bit into the CARRY bit & test
+  asl
+  asl
+  asl
   asl
   bcc exit_irq        ; carry clear = leave
   jsr keypad_handler  ; carry not clear = handle the CA1 interrupt (keypad)
