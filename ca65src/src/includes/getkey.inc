@@ -14,8 +14,8 @@ readKeypad:
   ldx #$04        ; Row 4 - counting down
   ldy #%10000000  ;
 ScanRow:
-  sty PORTA
-  lda PORTA
+  sty PORTA_1
+  lda PORTA_1
   and #%00001111  ; mask off keypad input - only low 4 (keypad column) bits are read
   cmp #$00
   bne Row_Found   ; non-zero means a row output has been connected via a switch to a column input
@@ -53,6 +53,6 @@ keypad_array: .byte "?DCBAF9630852E741"
 ;;
 scan:
   ldy #%11110000
-  sty PORTA
+  sty PORTA_1
   rts
 

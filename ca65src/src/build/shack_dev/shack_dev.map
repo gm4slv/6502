@@ -1,6 +1,6 @@
 Modules list:
 -------------
-monitor_dev.o:
+shack.o:
     CODE              Offs=000000  Size=000614  Align=00001  Fill=0000
     BSS               Offs=000000  Size=00000F  Align=00001  Fill=0000
     ZEROPAGE          Offs=000000  Size=000013  Align=00001  Fill=0000

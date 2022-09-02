@@ -1,7 +1,10 @@
 
 
-.SEGMENT "ZEROPAGE"
+;.SEGMENT "ZEROPAGE"
 
+  .zeropage
+
+  
 TICKS:            .res 4
 CENTISEC:         .res 1
 HUNDRED_HRS:      .res 1
@@ -13,6 +16,8 @@ TEN_SECONDS:      .res 1
 SECONDS:          .res 1
 
   .code
+
+  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;                          RTC / Jiffy Tick
