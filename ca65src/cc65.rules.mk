@@ -1,4 +1,4 @@
-include ../tools.mk
+include /home/gm4slv/6502/ca65src/tools.mk
 
 BUILD_FOLDER=../build
 TEMP_FOLDER=$(BUILD_FOLDER)/$(ROM_NAME)
