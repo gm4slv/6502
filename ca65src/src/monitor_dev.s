@@ -1,95 +1,44 @@
-; VIA Port addresses
-PORTB = $6000
-PORTA = $6001
-DDRB = $6002
-DDRA = $6003
-
-T1CL = $6004
-T1CH = $6005
-
-ACR = $600b
-PCR = $600c
-IFR_1 = $600d
-IER = $600e
-
-; LCD Command masks
-E  = %01000000
-RW = %00100000
-RS = %00010000
 
 
-  .org $8000
+.include "6522.inc"
+.include "rtc.inc"
+.include "lcd.inc"
+.include "getkey.inc"
 
 
-BASE_ADDRESS = $0000
+.SEGMENT "ZEROPAGE"
 
-; Zero Page variables
-; $00 = DUMP_POINTER
-; $01 = DUMP_POINTER + 1
-; $02 = INKEY
-; $03 = TEMP
-; $04 = MESSAGE_POINTER
-; $05 = MESSAGE_POINTER + 1
-; $06 = ASCII
-; $07 = ASCII + 1
-; $08 = ASCII + 2
-; $09 = ASCII + 3
-; $0A = BYTE
-; $0B = BYTE + 1
-; $0C = TICKS
-; $0D = TICKS + 1
-; $0E = TICKS + 2
-; $0F = TICKS + 3
-; $10 = TOGGLE_TIME
-; $11 = FLAG
-; $12 = CLOCK_LAST
-; $20 = CENTISEC
-; $21 = SECONDS
-; $22 = MINUTES
-; $23 = HRS
-; $24 = DAY
-; $25 = MO
-; $26 = YR
-; $27 = TENS
-; $28 = HUNDREDS
-; $30 = HEX
-; $31 = SPARE
-; $32 = HEXB
-; $33 = HEXB + 1
+DUMP_POINTER:     .res 2
+MESSAGE_POINTER:  .res 2
+FLAGS:            .res 1
 
 
-DUMP_POINTER = $00
+.SEGMENT "BSS"
 
-INKEY = $02
+INKEY:            .res 1
+ASCII:            .res 4
+BYTE:             .res 2
+TOGGLE_TIME:      .res 1
+CLOCK_LAST:       .res 1
+TENS:             .res 1
+HUNDREDS:         .res 1
+HEX:              .res 2
+HEXB:             .res 2
+TICKS:            .res 4
+TEMP:             .res 1
+TEMP2:            .res 1
+CENTISEC:         .res 1
+SECONDS:          .res 1
+TEN_SECONDS:      .res 1
+MINUTES:          .res 1
+TEN_MINUTES:      .res 1
+HRS:              .res 1
+TEN_HRS:          .res 1
+HUNDRED_HRS:      .res 1
+DAY:              .res 1
 
-TEMP = $03
+  .code
 
-MESSAGE_POINTER = $04
-
-ASCII = $06        ; 4-bytes rolling store of entered key-press characters in ASCII
-
-BYTE = $0A        ; binary representation of entered key-presses - 2 bytes
-
-TICKS = $0C       ; 4-bytes = 32 bits
-
-TOGGLE_TIME = $10
-
-FLAGS = $11 ; bit0 = update block memory view, bit5 = show clock
-
-CLOCK_LAST = $12
-
-CENTISEC = $20
-SECONDS = $21
-MINUTES = $22
-HRS = $23
-DAY = $24
-;MO = $25
-;YR = $26
-
-TENS = $27
-HUNDREDS = $28
-HEX = $30 ; 2 bytes
-HEXB = $32 ; 2 bytes
 
 reset:
   ldx #$ff
@@ -101,7 +50,6 @@ reset:
   lda #%11011010  ; T1, CA1 active
   sta IER
   
-
   lda #$01  ;  CA1 active high-transition 
   sta PCR
 
@@ -127,27 +75,29 @@ reset:
   lda #>splash
   sta MESSAGE_POINTER + 1
 
-  lda #<BASE_ADDRESS
-  sta DUMP_POINTER
-  lda #>BASE_ADDRESS
-  sta DUMP_POINTER + 1
 
-
-init_timer:
+init_variables:
   stz TICKS
   stz TICKS + 1
   stz TICKS + 2
   stz TICKS + 3
+  stz DUMP_POINTER
+  stz DUMP_POINTER + 1
   stz TOGGLE_TIME
   stz FLAGS
   stz SECONDS
+  stz TEN_SECONDS
   stz MINUTES
   stz HRS
+  stz TEN_HRS
+  stz TEN_MINUTES
+  stz HUNDRED_HRS
   stz DAY
-  ;stz MO
-  ;stz YR
   stz TEMP
+  stz TEMP2
   stz TENS
+
+init_via:
   lda #%01000000
   sta ACR
   lda #$0E
@@ -166,8 +116,8 @@ fill:
   lda #$60
   sta $30ff
 
-; show the clock at startup 
-  ;smb5 FLAGS
+; go straight to MONITOR at startup
+
   jsr new_address
 
 ; main loop
@@ -212,24 +162,24 @@ clock_time:
   
   lda #%00000010 ; cursor HOME
   jsr lcd_instruction
-  lda DAY
+  lda HUNDRED_HRS
   jsr bintoascii
-  lda #"/"
-  jsr print_char
+  lda TEN_HRS
+  jsr bintoascii
   lda HRS
   jsr bintoascii
-  lda #":"
+  lda #':'
   jsr print_char
+  lda TEN_MINUTES
+  jsr bintoascii
   lda MINUTES
   jsr bintoascii
-  lda #":"
+  lda #':'
   jsr print_char
+  lda TEN_SECONDS
+  jsr bintoascii
   lda SECONDS
   jsr bintoascii
-  ;lda #":"
-  ;jsr print_char
-  ;lda CENTISEC
-  ;jsr bintoascii
   lda TICKS
   sta CLOCK_LAST
 exit_clock:
@@ -250,14 +200,14 @@ new_address:
 
 
 print_address:
-  lda #"$"
+  lda #'$'
   jsr print_char
   lda DUMP_POINTER + 1
   jsr bintohex
   lda DUMP_POINTER
   jsr bintohex
 
-  lda #" "
+  lda #' '
   jsr print_char
 
 print_data:
@@ -266,7 +216,7 @@ print_data:
 
   lda (DUMP_POINTER),y
   jsr bintohex
-  lda #" "
+  lda #' '
   jsr print_char
   lda (DUMP_POINTER),y
   jsr print_char
@@ -290,7 +240,7 @@ block_address:
   ldy #$00
 
 print_block_address:
-  lda #"$"
+  lda #'$'
   jsr print_char
   lda DUMP_POINTER + 1
   jsr bintohex
@@ -335,16 +285,6 @@ end_print:
 
   rts
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;  set ROW keypad outputs high as a source for triggering interrupt when a key is pressed
-;;
-;;
-scan:
-  ldy #%11110000
-  sty PORTA
-  rts
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -360,11 +300,11 @@ byte_to_hex:
   jsr bintohex
   lda HEXB
   jsr bintohex
-  lda #"d"
+  lda #'d'
   jsr print_char
-  lda #"="
+  lda #'='
   jsr print_char
-  lda #"$"
+  lda #'$'
   jsr print_char
 
   lda HEXB ; lo byte
@@ -403,10 +343,10 @@ mult10:
   asl
   asl
   asl
-  sta TEMP ; A*8
+  sta TEMP2 ; A*8
   pla
   asl      ; A*2
-  adc TEMP ; A*10
+  adc TEMP2 ; A*10
   rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -439,152 +379,28 @@ bintohex:
 
 
 bintoascii:
+
+  cmp #10
+  bmi single_figure
   asl
   tax
   lda binascii,x
   jsr print_char
 
   inx
+
   lda binascii,x
   jsr print_char
   rts
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;
-;;                              LCD Functions 
-;;
-;;
-;;
-lcd_wait:
-  pha
-  lda #%01110000  ; LCD data is input (don't change MSB BIT7, it has to stay ZERO for SHIFT Button input)
-  sta DDRB
-lcdbusy:
-  lda #RW
-  sta PORTB
-  lda #(RW | E)
-  sta PORTB
-  lda PORTB       ; Read high nibble
-  pha             ; and put on stack since it has the busy flag
-  lda #RW
-  sta PORTB
-  lda #(RW | E)
-  sta PORTB
-  lda PORTB       ; Read low nibble
-  pla             ; Get high nibble off stack
-  and #%00001000
-  bne lcdbusy
-
-  lda #RW
-  sta PORTB
-  lda #%01111111  ; LCD data is output (don't change MSB BIT7, it has to stay ZERO for SHIFT Buttion input)
-  sta DDRB
-  pla
-  rts
-
-lcd_init:
-  lda #%00000010 ; Set 4-bit mode
-  sta PORTB
-  ora #E
-  sta PORTB
-  and #%00001111
-  sta PORTB
-  rts
-
-lcd_instruction:
-  jsr lcd_wait
-  pha
-  lsr
-  lsr
-  lsr
-  lsr            ; Send high 4 bits
-  sta PORTB
-  ora #E         ; Set E bit to send instruction
-  sta PORTB
-  eor #E         ; Clear E bit
-  sta PORTB
-  pla
-  and #%00001111 ; Send low 4 bits
-  sta PORTB
-  ora #E         ; Set E bit to send instruction
-  sta PORTB
-  eor #E         ; Clear E bit
-  sta PORTB
-  rts
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;   
-;;        PRINT Characters on LCD - an ASCII value in Accumulator 
-;;        is printed on the display
-;;
-
-print_char:
-  jsr lcd_wait
-  pha
-  lsr
-  lsr
-  lsr
-  lsr             ; Send high 4 bits
-  ora #RS         ; Set RS
-  sta PORTB
-  ora #E          ; Set E bit to send instruction
-  sta PORTB
-  eor #E          ; Clear E bit
-  sta PORTB
-  pla
-  and #%00001111  ; Send low 4 bits
-  ora #RS         ; Set RS
-  sta PORTB
-  ora #E          ; Set E bit to send instruction
-  sta PORTB
-  eor #E          ; Clear E bit
-  sta PORTB
-  rts
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;
-;;      READ THE 4x4 keypad using  VIA_1 PORTA 
-;;
-;;      Accumulator holds the ASCII value of the pressed key when it returns
-;;
-
-get_key:
-readKeypad:
-  ldx #$04        ; Row 4 - counting down
-  ldy #%10000000  ;
-ScanRow:
-  sty PORTA
-  lda PORTA
-  and #%00001111  ; mask off keypad input - only low 4 (keypad column) bits are read
-  cmp #$00
-  bne Row_Found   ; non-zero means a row output has been connected via a switch to a column input
-  dex             ; zero means it hasn't been found, so check next row down
-  tya
-  lsr
-  tay
-  cmp #%00001000
-  bne ScanRow
-  lda #$ff
-  rts
-Row_Found:
-  stx TEMP ; store row
-  ldy #$ff
-FindCol:
-  iny 
-  lsr
-  bcc FindCol
-  tya
-  asl 
-  asl  ; col * 4
-  clc
-  adc TEMP ; add row 
+single_figure:
+  asl
   tax
-  lda keypad_array,x
+  inx
+  lda binascii,x
+  jsr print_char
   rts
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -801,9 +617,14 @@ exit_show_block:
 ;;
 
 cb1_handler:
+  stz HUNDRED_HRS
+  stz TEN_HRS
+  stz TEN_MINUTES
+  stz TEN_SECONDS
   stz HRS
   stz MINUTES
   stz SECONDS
+
   smb5 FLAGS
 
   rts
@@ -836,7 +657,7 @@ keypad_handler:
 ; choose action of "SHIFTed" key-press
 check_a:
   lda INKEY       
-  cmp #"A"
+  cmp #'A'
   ; move up one memory address and display contents
   bne check_b     
   jsr increment_address
@@ -844,7 +665,7 @@ check_a:
   jmp exit_key_irq
 
 check_b:
-  cmp #"B"
+  cmp #'B'
   ; move down one memory address and display contents
   bne check_c
   jsr decrement_address
@@ -852,7 +673,7 @@ check_b:
   jmp exit_key_irq
 
 check_c:
-  cmp #"C"
+  cmp #'C'
   ; return to MONITOR
   bne check_d
   rmb5 FLAGS
@@ -867,7 +688,7 @@ check_c:
   jmp exit_key_irq
 
 check_d:
-  cmp #"D"
+  cmp #'D'
   ; move monitor to entered 4-digit memory address
   bne check_e
   lda BYTE
@@ -879,7 +700,7 @@ check_d:
   jmp exit_key_irq
 
 check_e:
-  cmp #"E"
+  cmp #'E'
   ; insert (POKE) byte of data in to current memory address, then increment to next address
   bne check_f
   lda BYTE
@@ -891,7 +712,7 @@ check_e:
   jmp exit_key_irq
 
 check_f:
-  cmp #"F"
+  cmp #'F'
   ; show 8-byte wide block of memory
   bne check_1
   ldy #$00
@@ -903,7 +724,7 @@ check_f:
   jmp exit_key_irq
 
 check_1:
-  cmp #"1"
+  cmp #'1'
   ; show/auto-update clock
   bne check_3
   lda #%00000001 ; Clear display
@@ -913,11 +734,13 @@ check_1:
   lda #>emt
   sta MESSAGE_POINTER + 1
   jsr print
-  jsr show_clock
+  smb5 FLAGS
+  
+  ;jsr show_clock
   jmp exit_key_irq
 
 check_3:
-  cmp #"3"
+  cmp #'3'
   bne check_6
   ldy #$00
   jsr increment_block
@@ -925,7 +748,7 @@ check_3:
   jmp exit_key_irq
 
 check_6:
-  cmp #"6"
+  cmp #'6'
   bne check_9
   ldy #$00
   jsr decrement_block
@@ -933,13 +756,13 @@ check_6:
   jmp exit_key_irq
 
 check_9:
-  cmp #"9"
+  cmp #'9'
   bne check_4
   jsr show_block
   jmp exit_key_irq
 
 check_4:
-  cmp #"4"
+  cmp #'4'
   bne check_5
   lda BYTE
   sta HEXB
@@ -949,7 +772,7 @@ check_4:
   jmp exit_key_irq
 
 check_5:
-  cmp #"5"
+  cmp #'5'
   bne exit_key_irq
   jsr $3000
   jmp exit_key_irq
@@ -975,102 +798,6 @@ exit_key_irq:
 
   rts
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;                          RTC / Jiffy Tick
-;;
-
-timer1_handler:
-
-
-;;  RTC stores ticks at 10ms intervals into a 4-byte (32 bit) value
-;;
-;;  as each byte rolls over the next one is incremented
-;;  on a tick that doesn't roll over the TIME OF DAY 
-;;  is updated
-
-  inc TICKS
-  bne inc_TOD
-  inc TICKS + 1
-  bne inc_TOD
-  inc TICKS + 2
-  bne inc_TOD
-  inc TICKS + 3
-
-;;
-;;  Every time it's called we increment the "hundredths of a second" byte
-;;
-;;  When there's been 100 x 10ms (i.e. 1 second) we increment the seconds
-;;
-;;  When SECONDS reaches 60 we increment MINUTES and reset SECONDS to zero...
-;;  etc... for HOURS, DAYS etc.
-;;
-;;  days/months years are handled too - although probably moot
-;;
-;;  this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
-;;
-inc_TOD:
-  inc CENTISEC
-  lda CENTISEC
-  cmp #100
-  bmi end_TOD
-  stz CENTISEC
-
-  inc SECONDS
-  lda SECONDS
-  cmp #60
-  bmi end_TOD
-  stz SECONDS
-
-  inc MINUTES
-  lda MINUTES
-  cmp #60
-  bmi end_TOD
-  stz MINUTES
-
-  inc HRS
-  lda HRS
-  cmp #24
-  bmi end_TOD
-  stz HRS
-
-  inc DAY
-
-  ;lda MO
-  ;cmp #2
-  ;bne notfeb
-
-  ;lda YR
-  ;and #%11111100
-  ;cmp YR
-  ;bne notfeb
-
-  ;lda DAY
-  ;cmp #30
-  ;beq new_mo
-  ;pla
-  ;rts
-;notfeb:
-  ;phx
-  ;ldx MO
-  ;lda MO_DAYS_TABLE-1,x
-  ;plx
-  ;cmp DAY
-  ;bne end_TOD
-;new_mo:
-  ;lda #1
-  ;sta DAY
-  ;inc MO
-  ;lda MO
-  ;cmp #13
-  ;bne end_TOD
-  ;lda #1
-  ;sta MO
-
-  ;inc YR
-end_TOD:
-  rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1114,7 +841,7 @@ test_timer1:
   asl
   bcc test_cb1  ; carry clear = next test
   bit T1CL      ; clear not clear = handle the TIMER interrupt
-  jsr timer1_handler
+  jsr rtc
   jmp exit_irq
 
 test_cb1:
@@ -1150,7 +877,7 @@ exit_irq:
 
   rti
 
-emt: .asciiz "DD hh mm ss  MET"
+emt: .asciiz "hhh mm ss  MET"
 splash: .asciiz "shack> "
 keypad_array: .byte "?DCBAF9630852E741"
 hexascii: .byte "0123456789ABCDEF"
@@ -1169,7 +896,9 @@ MO_DAYS_TABLE: .byte 32,  29,  32,  31,  32,  31,  32,  32,  31,  32,  31,  32
 
 
 ; Reset/IRQ vectors
-  .org $fffa
+
+.segment "VECTORS"
+
   .word nmi
   .word reset
   .word irq

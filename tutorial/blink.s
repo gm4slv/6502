@@ -1,17 +1,28 @@
+
+
   .org $8000
 
 reset:
-  lda #$ff
-  sta $6002
-
-  lda #$50
-  sta $6000
+  lda #$00
+  sta PORTA
+  sta PORTA + 1
+  
+  jmp test
 
 loop:
-  ror
-  sta $6000
 
   jmp loop
+
+  ldy $00
+
+test:
+  lda (PORTA),y
+  iny
+  cmp #$FF
+  beq loop
+
+
+PORTA: ds 2
 
   .org $fffc
   .word reset

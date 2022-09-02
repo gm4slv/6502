@@ -1,3 +1,7 @@
+.org $fffa
+  .word nmi
+  .word reset
+  .word irq
 ; VIA Addressing
 PORTB = $6000
 PORTA = $6001
