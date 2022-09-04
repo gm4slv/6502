@@ -1,20 +1,20 @@
 
 
-.include "../includes/6522.inc"
-.include "../includes/lcd.inc"
-.include "../includes/getkey.inc"
-.include "../includes/functions.inc"
-.include "../includes/rtc.inc"
+  .include ../includes/6522.inc
+  .include "../includes/lcd.inc"
+  .include "../includes/getkey.inc"
+  .include "../includes/functions.inc"
+  .include "../includes/rtc.inc"
 
 
 ;.SEGMENT "ZEROPAGE"
 .zeropage
 
 DUMP_POINTER:     .res 2
-MESSAGE_POINTER:  .res 2
 FLAGS:            .res 1
 TOGGLE_TIME:      .res 1
 CLOCK_LAST:       .res 1
+MESSAGE_POINTER = $20; .res 2
 
 
 ;.SEGMENT "BSS"
@@ -31,7 +31,8 @@ TEMP:             .res 1
 TEMP2:            .res 1
 
 
-.code
+  .org $8000
+;.code
 
 
 reset:
@@ -67,7 +68,6 @@ init_variables:
   stz TEMP
   stz TEMP2
   stz TENS  
-
 
   
 
@@ -693,7 +693,7 @@ exit_irq:
   rti
 
 emt: .asciiz "hhh mm ss  MET"
-splash: .asciiz "shack> "
+splash: .asciiz "mon> "
 
 ; Reset/IRQ vectors
 

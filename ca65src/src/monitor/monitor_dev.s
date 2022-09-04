@@ -11,10 +11,10 @@
 .zeropage
 
 DUMP_POINTER:     .res 2
-MESSAGE_POINTER:  .res 2
 FLAGS:            .res 1
 TOGGLE_TIME:      .res 1
 CLOCK_LAST:       .res 1
+MESSAGE_POINTER = $20; .res 2
 
 
 ;.SEGMENT "BSS"
@@ -68,8 +68,6 @@ init_variables:
   stz TEMP
   stz TEMP2
   stz TENS  
- 
-
 
   
 
@@ -79,10 +77,11 @@ init_variables:
 ; we put RTS at $30ff to ensure the code returns when <SHIFT>5 is pressed
 ; even if nothing (or garbage) has been entered
 
-user_ram_rts:
+user_ram:
   lda #$60
   sta $30ff
-
+  
+  
 ; go straight to MONITOR at startup
   lda #<splash
   sta MESSAGE_POINTER
@@ -447,7 +446,7 @@ cb1_handler:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;     CB2 : stop timer
+;;     CB2 : lap-time pause timer
 ;;
 
 cb2_handler:
@@ -467,12 +466,14 @@ keypad_handler:
   
   lda PORTB_1       ; check for SHIFT/INSTRUCTION button
   and #%10000000
-  beq check_a ; done this way to get around the limit in size of branch jumps....
+  beq check_keypress ; done this way to get around the limit in size of branch jumps....
   jmp handle_new_char
+  
+check_keypress:
+  lda INKEY       
 
 ; choose action of "SHIFTed" key-press
 check_a:
-  lda INKEY       
   cmp #'A'
   ; move up one memory address and display contents
   bne check_b     
@@ -692,8 +693,7 @@ exit_irq:
   rti
 
 emt: .asciiz "hhh mm ss  MET"
-splash: .asciiz "shack> "
-
+splash: .asciiz "mon> "
 
 ; Reset/IRQ vectors
 

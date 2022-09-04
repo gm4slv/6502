@@ -1,6 +1,6 @@
 
-  .code
-  
+ .org $8000
+
 ; VIA_1 Port addresses
 PORTB_1   = $6000
 PORTA_1   = $6001
@@ -35,6 +35,5 @@ via_1_init:
   sta DDRB_1
   lda #%11110000 ; Set low-nibble pins on port A to input and high-nibble pins to output, for keypad
   sta DDRA_1
-
   rts
 

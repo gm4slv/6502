@@ -1,0 +1,2124 @@
+F00:0001       
+F00:0002       
+F00:0003         .include "./includes/6522.inc"
+F01:0001       
+F01:0002        .org $8000
+F01:0003       
+F01:0004       ; VIA_1 Port addresses
+F01:0005       PORTB_1   = $6000
+F01:0006       PORTA_1   = $6001
+F01:0007       DDRB_1    = $6002
+F01:0008       DDRA_1    = $6003
+F01:0009       
+F01:0010       T1CL_1    = $6004
+F01:0011       T1CH_1    = $6005
+F01:0012       
+F01:0013       ACR_1     = $600b
+F01:0014       PCR_1     = $600c
+F01:0015       IFR_1     = $600d
+F01:0016       IER_1     = $600e
+F01:0017       
+F01:0018       
+F01:0019       via_1_init:
+F01:0020       
+F01:0021         lda #%01000000
+               S01:FFFFFFFFFFFF8000:  A9 40
+F01:0022         sta ACR_1
+               S01:FFFFFFFFFFFF8002:  8D 0B 60
+F01:0023         lda #$0E
+               S01:FFFFFFFFFFFF8005:  A9 0E
+F01:0024         sta T1CL_1
+               S01:FFFFFFFFFFFF8007:  8D 04 60
+F01:0025         lda #$27
+               S01:FFFFFFFFFFFF800A:  A9 27
+F01:0026         sta T1CH_1
+               S01:FFFFFFFFFFFF800C:  8D 05 60
+F01:0027         
+F01:0028         lda #%11011010  ; T1, CA1 active
+               S01:FFFFFFFFFFFF800F:  A9 DA
+F01:0029         sta IER_1
+               S01:FFFFFFFFFFFF8011:  8D 0E 60
+F01:0030         
+F01:0031         lda #$01  ;  CA1 active high-transition 
+               S01:FFFFFFFFFFFF8014:  A9 01
+F01:0032         sta PCR_1
+               S01:FFFFFFFFFFFF8016:  8D 0C 60
+F01:0033         
+F01:0034         lda #%01111111 ; Set all pins on port B to output except BIT 7 which is used for "SHIFT/INSTRUCTION"  button
+               S01:FFFFFFFFFFFF8019:  A9 7F
+F01:0035         sta DDRB_1
+               S01:FFFFFFFFFFFF801B:  8D 02 60
+F01:0036         lda #%11110000 ; Set low-nibble pins on port A to input and high-nibble pins to output, for keypad
+               S01:FFFFFFFFFFFF801E:  A9 F0
+F01:0037         sta DDRA_1
+               S01:FFFFFFFFFFFF8020:  8D 03 60
+F01:0038         rts
+               S01:FFFFFFFFFFFF8023:  60
+F01:0039       
+F01:0040       
+F00:0004         .include "./includes/lcd.inc"
+F02:0001       
+F02:0002       
+F02:0003         .org $8000
+F02:0004       
+F02:0005       ; LCD Command masks
+F02:0006       E  = %01000000
+F02:0007       RW = %00100000
+F02:0008       RS = %00010000
+F02:0009       
+F02:0010       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F02:0011       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F02:0012       ;;
+F02:0013       ;;
+F02:0014       ;;                              LCD Functions 
+F02:0015       ;;
+F02:0016       ;;
+F02:0017       ;;
+F02:0018       
+F02:0019       lcd_start:
+F02:0020         lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+               S01:FFFFFFFFFFFF8024:  A9 28
+F02:0021         jsr lcd_instruction
+               S01:FFFFFFFFFFFF8026:  20 99 80
+F02:0022         jsr lcd_entry_mode
+               S01:FFFFFFFFFFFF8029:  20 33 80
+F02:0023         jsr lcd_cursor_off
+               S01:FFFFFFFFFFFF802C:  20 45 80
+F02:0024         jsr lcd_clear
+               S01:FFFFFFFFFFFF802F:  20 3F 80
+F02:0025         rts
+               S01:FFFFFFFFFFFF8032:  60
+F02:0026       
+F02:0027       lcd_entry_mode:
+F02:0028         lda #%00000110 ; Increment and shift cursor; don't shift display
+               S01:FFFFFFFFFFFF8033:  A9 06
+F02:0029         jsr lcd_instruction
+               S01:FFFFFFFFFFFF8035:  20 99 80
+F02:0030         rts
+               S01:FFFFFFFFFFFF8038:  60
+F02:0031       
+F02:0032       lcd_home:
+F02:0033         lda #%00000010 ; cursor HOME
+               S01:FFFFFFFFFFFF8039:  A9 02
+F02:0034         jsr lcd_instruction
+               S01:FFFFFFFFFFFF803B:  20 99 80
+F02:0035         rts
+               S01:FFFFFFFFFFFF803E:  60
+F02:0036         
+F02:0037       lcd_clear:
+F02:0038         lda #%00000001 ; Clear display
+               S01:FFFFFFFFFFFF803F:  A9 01
+F02:0039         jsr lcd_instruction
+               S01:FFFFFFFFFFFF8041:  20 99 80
+F02:0040         rts
+               S01:FFFFFFFFFFFF8044:  60
+F02:0041       
+F02:0042       lcd_cursor_off:
+F02:0043         lda #%00001100 ; Display on; cursor off; blink off
+               S01:FFFFFFFFFFFF8045:  A9 0C
+F02:0044         jsr lcd_instruction
+               S01:FFFFFFFFFFFF8047:  20 99 80
+F02:0045         rts
+               S01:FFFFFFFFFFFF804A:  60
+F02:0046       
+F02:0047       lcd_cursor_on:
+F02:0048         lda #%00001111 ; Display on; cursor on; blink on
+               S01:FFFFFFFFFFFF804B:  A9 0F
+F02:0049         jsr lcd_instruction
+               S01:FFFFFFFFFFFF804D:  20 99 80
+F02:0050         rts
+               S01:FFFFFFFFFFFF8050:  60
+F02:0051       
+F02:0052       lcd_line_2:
+F02:0053         lda #%10101001
+               S01:FFFFFFFFFFFF8051:  A9 A9
+F02:0054         jsr lcd_instruction
+               S01:FFFFFFFFFFFF8053:  20 99 80
+F02:0055         rts
+               S01:FFFFFFFFFFFF8056:  60
+F02:0056         
+F02:0057       lcd_wait:
+F02:0058         pha
+               S01:FFFFFFFFFFFF8057:  48
+F02:0059         lda #%01110000  ; LCD data is input (don't change MSB BIT7, it has to stay ZERO for SHIFT Button input)
+               S01:FFFFFFFFFFFF8058:  A9 70
+F02:0060         sta DDRB_1
+               S01:FFFFFFFFFFFF805A:  8D 02 60
+F02:0061       lcdbusy:
+F02:0062         lda #RW
+               S01:FFFFFFFFFFFF805D:  A9 20
+F02:0063         sta PORTB_1
+               S01:FFFFFFFFFFFF805F:  8D 00 60
+F02:0064         lda #(RW | E)
+               S01:FFFFFFFFFFFF8062:  A9 60
+F02:0065         sta PORTB_1
+               S01:FFFFFFFFFFFF8064:  8D 00 60
+F02:0066         lda PORTB_1     ; Read high nibble
+               S01:FFFFFFFFFFFF8067:  AD 00 60
+F02:0067         pha             ; and put on stack since it has the busy flag
+               S01:FFFFFFFFFFFF806A:  48
+F02:0068         lda #RW
+               S01:FFFFFFFFFFFF806B:  A9 20
+F02:0069         sta PORTB_1
+               S01:FFFFFFFFFFFF806D:  8D 00 60
+F02:0070         lda #(RW | E)
+               S01:FFFFFFFFFFFF8070:  A9 60
+F02:0071         sta PORTB_1
+               S01:FFFFFFFFFFFF8072:  8D 00 60
+F02:0072         lda PORTB_1       ; Read low nibble
+               S01:FFFFFFFFFFFF8075:  AD 00 60
+F02:0073         pla             ; Get high nibble off stack
+               S01:FFFFFFFFFFFF8078:  68
+F02:0074         and #%00001000
+               S01:FFFFFFFFFFFF8079:  29 08
+F02:0075         bne lcdbusy
+               S01:FFFFFFFFFFFF807B:  D0 E0
+F02:0076       
+F02:0077         lda #RW
+               S01:FFFFFFFFFFFF807D:  A9 20
+F02:0078         sta PORTB_1
+               S01:FFFFFFFFFFFF807F:  8D 00 60
+F02:0079         lda #%01111111  ; LCD data is output (don't change MSB BIT7, it has to stay ZERO for SHIFT Buttion input)
+               S01:FFFFFFFFFFFF8082:  A9 7F
+F02:0080         sta DDRB_1
+               S01:FFFFFFFFFFFF8084:  8D 02 60
+F02:0081         pla
+               S01:FFFFFFFFFFFF8087:  68
+F02:0082         rts
+               S01:FFFFFFFFFFFF8088:  60
+F02:0083       
+F02:0084       lcd_init:
+F02:0085         lda #%00000010 ; Set 4-bit mode : DO ONCE AT POWER UP
+               S01:FFFFFFFFFFFF8089:  A9 02
+F02:0086         sta PORTB_1
+               S01:FFFFFFFFFFFF808B:  8D 00 60
+F02:0087         ora #E
+               S01:FFFFFFFFFFFF808E:  09 40
+F02:0088         sta PORTB_1
+               S01:FFFFFFFFFFFF8090:  8D 00 60
+F02:0089         and #%00001111
+               S01:FFFFFFFFFFFF8093:  29 0F
+F02:0090         sta PORTB_1
+               S01:FFFFFFFFFFFF8095:  8D 00 60
+F02:0091         rts
+               S01:FFFFFFFFFFFF8098:  60
+F02:0092       
+F02:0093       lcd_instruction:
+F02:0094         jsr lcd_wait
+               S01:FFFFFFFFFFFF8099:  20 57 80
+F02:0095         pha
+               S01:FFFFFFFFFFFF809C:  48
+F02:0096         lsr
+               S01:FFFFFFFFFFFF809D:  4A
+F02:0097         lsr
+               S01:FFFFFFFFFFFF809E:  4A
+F02:0098         lsr
+               S01:FFFFFFFFFFFF809F:  4A
+F02:0099         lsr            ; Send high 4 bits
+               S01:FFFFFFFFFFFF80A0:  4A
+F02:0100         sta PORTB_1
+               S01:FFFFFFFFFFFF80A1:  8D 00 60
+F02:0101         ora #E         ; Set E bit to send instruction
+               S01:FFFFFFFFFFFF80A4:  09 40
+F02:0102         sta PORTB_1
+               S01:FFFFFFFFFFFF80A6:  8D 00 60
+F02:0103         eor #E         ; Clear E bit
+               S01:FFFFFFFFFFFF80A9:  49 40
+F02:0104         sta PORTB_1
+               S01:FFFFFFFFFFFF80AB:  8D 00 60
+F02:0105         pla
+               S01:FFFFFFFFFFFF80AE:  68
+F02:0106         and #%00001111 ; Send low 4 bits
+               S01:FFFFFFFFFFFF80AF:  29 0F
+F02:0107         sta PORTB_1
+               S01:FFFFFFFFFFFF80B1:  8D 00 60
+F02:0108         ora #E         ; Set E bit to send instruction
+               S01:FFFFFFFFFFFF80B4:  09 40
+F02:0109         sta PORTB_1
+               S01:FFFFFFFFFFFF80B6:  8D 00 60
+F02:0110         eor #E         ; Clear E bit
+               S01:FFFFFFFFFFFF80B9:  49 40
+F02:0111         sta PORTB_1
+               S01:FFFFFFFFFFFF80BB:  8D 00 60
+F02:0112         rts
+               S01:FFFFFFFFFFFF80BE:  60
+F02:0113       
+F02:0114       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F02:0115       ;;   
+F02:0116       ;;        PRINT Characters on LCD - an ASCII value in Accumulator 
+F02:0117       ;;        is printed on the display
+F02:0118       ;;
+F02:0119       
+F02:0120       print_char:
+F02:0121         jsr lcd_wait
+               S01:FFFFFFFFFFFF80BF:  20 57 80
+F02:0122         pha
+               S01:FFFFFFFFFFFF80C2:  48
+F02:0123         lsr
+               S01:FFFFFFFFFFFF80C3:  4A
+F02:0124         lsr
+               S01:FFFFFFFFFFFF80C4:  4A
+F02:0125         lsr
+               S01:FFFFFFFFFFFF80C5:  4A
+F02:0126         lsr             ; Send high 4 bits
+               S01:FFFFFFFFFFFF80C6:  4A
+F02:0127         ora #RS         ; Set RS
+               S01:FFFFFFFFFFFF80C7:  09 10
+F02:0128         sta PORTB_1
+               S01:FFFFFFFFFFFF80C9:  8D 00 60
+F02:0129         ora #E          ; Set E bit to send instruction
+               S01:FFFFFFFFFFFF80CC:  09 40
+F02:0130         sta PORTB_1
+               S01:FFFFFFFFFFFF80CE:  8D 00 60
+F02:0131         eor #E          ; Clear E bit
+               S01:FFFFFFFFFFFF80D1:  49 40
+F02:0132         sta PORTB_1
+               S01:FFFFFFFFFFFF80D3:  8D 00 60
+F02:0133         pla
+               S01:FFFFFFFFFFFF80D6:  68
+F02:0134         and #%00001111  ; Send low 4 bits
+               S01:FFFFFFFFFFFF80D7:  29 0F
+F02:0135         ora #RS         ; Set RS
+               S01:FFFFFFFFFFFF80D9:  09 10
+F02:0136         sta PORTB_1
+               S01:FFFFFFFFFFFF80DB:  8D 00 60
+F02:0137         ora #E          ; Set E bit to send instruction
+               S01:FFFFFFFFFFFF80DE:  09 40
+F02:0138         sta PORTB_1
+               S01:FFFFFFFFFFFF80E0:  8D 00 60
+F02:0139         eor #E          ; Clear E bit
+               S01:FFFFFFFFFFFF80E3:  49 40
+F02:0140         sta PORTB_1
+               S01:FFFFFFFFFFFF80E5:  8D 00 60
+F02:0141         rts
+               S01:FFFFFFFFFFFF80E8:  60
+F02:0142       
+F02:0143       
+F00:0005         .include "./includes/getkey.inc"
+F03:0001       
+F03:0002         .org $8000
+F03:0003       
+F03:0004       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F03:0005       ;;
+F03:0006       ;;
+F03:0007       ;;      READ THE 4x4 keypad using  VIA_1 PORTA 
+F03:0008       ;;
+F03:0009       ;;      Accumulator holds the ASCII value of the pressed key when it returns
+F03:0010       ;;
+F03:0011       
+F03:0012       get_key:
+F03:0013       readKeypad:
+F03:0014         ldx #$04        ; Row 4 - counting down
+               S01:FFFFFFFFFFFF80E9:  A2 04
+F03:0015         ldy #%10000000  ;
+               S01:FFFFFFFFFFFF80EB:  A0 80
+F03:0016       ScanRow:
+F03:0017         sty PORTA_1
+               S01:FFFFFFFFFFFF80ED:  8C 01 60
+F03:0018         lda PORTA_1
+               S01:FFFFFFFFFFFF80F0:  AD 01 60
+F03:0019         and #%00001111  ; mask off keypad input - only low 4 (keypad column) bits are read
+               S01:FFFFFFFFFFFF80F3:  29 0F
+F03:0020         cmp #$00
+               S01:FFFFFFFFFFFF80F5:  C9 00
+F03:0021         bne Row_Found   ; non-zero means a row output has been connected via a switch to a column input
+               S01:FFFFFFFFFFFF80F7:  D0 0B
+F03:0022         dex             ; zero means it hasn't been found, so check next row down
+               S01:FFFFFFFFFFFF80F9:  CA
+F03:0023         tya
+               S01:FFFFFFFFFFFF80FA:  98
+F03:0024         lsr
+               S01:FFFFFFFFFFFF80FB:  4A
+F03:0025         tay
+               S01:FFFFFFFFFFFF80FC:  A8
+F03:0026         cmp #%00001000
+               S01:FFFFFFFFFFFF80FD:  C9 08
+F03:0027         bne ScanRow
+               S01:FFFFFFFFFFFF80FF:  D0 EC
+F03:0028         lda #$ff
+               S01:FFFFFFFFFFFF8101:  A9 FF
+F03:0029         rts
+               S01:FFFFFFFFFFFF8103:  60
+F03:0030       Row_Found:
+F03:0031         stx TEMP ; store row
+               S01:FFFFFFFFFFFF8104:  8E 0D 02
+F03:0032         ldy #$ff
+               S01:FFFFFFFFFFFF8107:  A0 FF
+F03:0033       FindCol:
+F03:0034         iny
+               S01:FFFFFFFFFFFF8109:  C8
+F03:0035         lsr
+               S01:FFFFFFFFFFFF810A:  4A
+F03:0036         bcc FindCol
+               S01:FFFFFFFFFFFF810B:  90 FC
+F03:0037         tya
+               S01:FFFFFFFFFFFF810D:  98
+F03:0038         asl
+               S01:FFFFFFFFFFFF810E:  0A
+F03:0039         asl  ; col * 4
+               S01:FFFFFFFFFFFF810F:  0A
+F03:0040         clc
+               S01:FFFFFFFFFFFF8110:  18
+F03:0041         adc TEMP ; add row 
+               S01:FFFFFFFFFFFF8111:  6D 0D 02
+F03:0042         tax
+               S01:FFFFFFFFFFFF8114:  AA
+F03:0043         lda keypad_array,x
+               S01:FFFFFFFFFFFF8115:  BD 19 81
+F03:0044         rts
+               S01:FFFFFFFFFFFF8118:  60
+F03:0045       
+F03:0046       
+F03:0047       keypad_array: .byte "?DCBAF9630852E741"
+               S01:FFFFFFFFFFFF8119:  3F 44 43 42 41 46 39 36 33 30 38 35 32 45 37 34
+               S01:FFFFFFFFFFFF8129:  31
+F03:0048       
+F03:0049       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F03:0050       ;;
+F03:0051       ;;  set ROW keypad outputs high as a source for triggering interrupt when a key is pressed
+F03:0052       ;;
+F03:0053       ;;
+F03:0054       scan:
+F03:0055         lda #%11110000
+               S01:FFFFFFFFFFFF812A:  A9 F0
+F03:0056         sta PORTA_1
+               S01:FFFFFFFFFFFF812C:  8D 01 60
+F03:0057         rts
+               S01:FFFFFFFFFFFF812F:  60
+F03:0058       
+F03:0059       
+F00:0006         .include "./includes/functions.inc"
+F04:0001       
+F04:0002       
+F04:0003         .org $8000
+F04:0004       
+F04:0005       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F04:0006       ;;
+F04:0007       ;;          convert a binary number from Accumulator, in range 00000000 -> 11111111 ($00 to $FF)
+F04:0008       ;;          to its HEX number encode as ASCII -  using a simple lookup table and print it on LCD
+F04:0009       ;;
+F04:0010       bintohex:
+F04:0011         pha
+               S01:FFFFFFFFFFFF8130:  48
+F04:0012         lsr
+               S01:FFFFFFFFFFFF8131:  4A
+F04:0013         lsr
+               S01:FFFFFFFFFFFF8132:  4A
+F04:0014         lsr
+               S01:FFFFFFFFFFFF8133:  4A
+F04:0015         lsr
+               S01:FFFFFFFFFFFF8134:  4A
+F04:0016         tax
+               S01:FFFFFFFFFFFF8135:  AA
+F04:0017         lda hexascii,x
+               S01:FFFFFFFFFFFF8136:  BD 47 81
+F04:0018         jsr print_char
+               S01:FFFFFFFFFFFF8139:  20 BF 80
+F04:0019         pla
+               S01:FFFFFFFFFFFF813C:  68
+F04:0020         and #$0f
+               S01:FFFFFFFFFFFF813D:  29 0F
+F04:0021         tax
+               S01:FFFFFFFFFFFF813F:  AA
+F04:0022         lda hexascii,x
+               S01:FFFFFFFFFFFF8140:  BD 47 81
+F04:0023         jsr print_char
+               S01:FFFFFFFFFFFF8143:  20 BF 80
+F04:0024         rts
+               S01:FFFFFFFFFFFF8146:  60
+F04:0025       
+F04:0026       hexascii: .byte "0123456789ABCDEF"
+               S01:FFFFFFFFFFFF8147:  30 31 32 33 34 35 36 37 38 39 41 42 43 44 45 46
+F04:0027       
+F04:0028       
+F04:0029       
+F04:0030       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F04:0031       ;;
+F04:0032       ;;    convert a binary (hex) value in Accumulator into
+F04:0033       ;;    its ASCII equivalent character in decimal 0-99 and print it
+F04:0034       ;;    this converts hex/binary numbers from the RTC into human readable
+F04:0035       ;;    decimal for display on clock
+F04:0036       
+F04:0037       
+F04:0038       bintoascii:
+F04:0039       
+F04:0040         cmp #10
+               S01:FFFFFFFFFFFF8157:  C9 0A
+F04:0041         bmi single_figure
+               S01:FFFFFFFFFFFF8159:  30 10
+F04:0042         asl
+               S01:FFFFFFFFFFFF815B:  0A
+F04:0043         tax
+               S01:FFFFFFFFFFFF815C:  AA
+F04:0044         lda binascii,x
+               S01:FFFFFFFFFFFF815D:  BD 75 81
+F04:0045         jsr print_char
+               S01:FFFFFFFFFFFF8160:  20 BF 80
+F04:0046       
+F04:0047         inx
+               S01:FFFFFFFFFFFF8163:  E8
+F04:0048       
+F04:0049         lda binascii,x
+               S01:FFFFFFFFFFFF8164:  BD 75 81
+F04:0050         jsr print_char
+               S01:FFFFFFFFFFFF8167:  20 BF 80
+F04:0051         rts
+               S01:FFFFFFFFFFFF816A:  60
+F04:0052       
+F04:0053       single_figure:
+F04:0054         asl
+               S01:FFFFFFFFFFFF816B:  0A
+F04:0055         tax
+               S01:FFFFFFFFFFFF816C:  AA
+F04:0056         inx
+               S01:FFFFFFFFFFFF816D:  E8
+F04:0057         lda binascii,x
+               S01:FFFFFFFFFFFF816E:  BD 75 81
+F04:0058         jsr print_char
+               S01:FFFFFFFFFFFF8171:  20 BF 80
+F04:0059         rts
+               S01:FFFFFFFFFFFF8174:  60
+F04:0060       
+F04:0061       
+F04:0062       binascii: .byte "00010203040506070809"
+               S01:FFFFFFFFFFFF8175:  30 30 30 31 30 32 30 33 30 34 30 35 30 36 30 37
+               S01:FFFFFFFFFFFF8185:  30 38 30 39
+F04:0063                 .byte "10111213141516171819"
+               S01:FFFFFFFFFFFF8189:  31 30 31 31 31 32 31 33 31 34 31 35 31 36 31 37
+               S01:FFFFFFFFFFFF8199:  31 38 31 39
+F04:0064                 .byte "20212223242526272829"
+               S01:FFFFFFFFFFFF819D:  32 30 32 31 32 32 32 33 32 34 32 35 32 36 32 37
+               S01:FFFFFFFFFFFF81AD:  32 38 32 39
+F04:0065                 .byte "30313233343536373839"
+               S01:FFFFFFFFFFFF81B1:  33 30 33 31 33 32 33 33 33 34 33 35 33 36 33 37
+               S01:FFFFFFFFFFFF81C1:  33 38 33 39
+F04:0066                 .byte "40414243444546474849"
+               S01:FFFFFFFFFFFF81C5:  34 30 34 31 34 32 34 33 34 34 34 35 34 36 34 37
+               S01:FFFFFFFFFFFF81D5:  34 38 34 39
+F04:0067                 .byte "50515253545556575859"
+               S01:FFFFFFFFFFFF81D9:  35 30 35 31 35 32 35 33 35 34 35 35 35 36 35 37
+               S01:FFFFFFFFFFFF81E9:  35 38 35 39
+F04:0068                 .byte "60616263646566676869"
+               S01:FFFFFFFFFFFF81ED:  36 30 36 31 36 32 36 33 36 34 36 35 36 36 36 37
+               S01:FFFFFFFFFFFF81FD:  36 38 36 39
+F04:0069                 .byte "70717273747576777879"
+               S01:FFFFFFFFFFFF8201:  37 30 37 31 37 32 37 33 37 34 37 35 37 36 37 37
+               S01:FFFFFFFFFFFF8211:  37 38 37 39
+F04:0070                 .byte "80818283848586878889"
+               S01:FFFFFFFFFFFF8215:  38 30 38 31 38 32 38 33 38 34 38 35 38 36 38 37
+               S01:FFFFFFFFFFFF8225:  38 38 38 39
+F04:0071                 .byte "90919293949596979899"
+               S01:FFFFFFFFFFFF8229:  39 30 39 31 39 32 39 33 39 34 39 35 39 36 39 37
+               S01:FFFFFFFFFFFF8239:  39 38 39 39
+F04:0072       
+F04:0073       
+F04:0074       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F04:0075       ;;
+F04:0076       ;;      Convert a decimal number entered at keypad into its
+F04:0077       ;;      HEX equivalent and display
+F04:0078       ;;
+F04:0079       
+F04:0080       byte_to_hex:
+F04:0081       
+F04:0082         jsr lcd_clear
+               S01:FFFFFFFFFFFF823D:  20 3F 80
+F04:0083         lda HEXB + 1
+               S01:FFFFFFFFFFFF8240:  AD 0C 02
+F04:0084         and #$0f
+               S01:FFFFFFFFFFFF8243:  29 0F
+F04:0085         jsr bintohex
+               S01:FFFFFFFFFFFF8245:  20 30 81
+F04:0086         lda HEXB
+               S01:FFFFFFFFFFFF8248:  AD 0B 02
+F04:0087         jsr bintohex
+               S01:FFFFFFFFFFFF824B:  20 30 81
+F04:0088         lda #'d'
+               S01:FFFFFFFFFFFF824E:  A9 64
+F04:0089         jsr print_char
+               S01:FFFFFFFFFFFF8250:  20 BF 80
+F04:0090         lda #'='
+               S01:FFFFFFFFFFFF8253:  A9 3D
+F04:0091         jsr print_char
+               S01:FFFFFFFFFFFF8255:  20 BF 80
+F04:0092         lda #'$'
+               S01:FFFFFFFFFFFF8258:  A9 24
+F04:0093         jsr print_char
+               S01:FFFFFFFFFFFF825A:  20 BF 80
+F04:0094       
+F04:0095         lda HEXB ; lo byte
+               S01:FFFFFFFFFFFF825D:  AD 0B 02
+F04:0096         pha
+               S01:FFFFFFFFFFFF8260:  48
+F04:0097         lsr
+               S01:FFFFFFFFFFFF8261:  4A
+F04:0098         lsr
+               S01:FFFFFFFFFFFF8262:  4A
+F04:0099         lsr
+               S01:FFFFFFFFFFFF8263:  4A
+F04:0100         lsr
+               S01:FFFFFFFFFFFF8264:  4A
+F04:0101         cmp #10
+               S01:FFFFFFFFFFFF8265:  C9 0A
+F04:0102         bpl error
+               S01:FFFFFFFFFFFF8267:  10 2C
+F04:0103         jsr mult10
+               S01:FFFFFFFFFFFF8269:  20 A6 82
+F04:0104         sta TENS
+               S01:FFFFFFFFFFFF826C:  8D 07 02
+F04:0105         pla
+               S01:FFFFFFFFFFFF826F:  68
+F04:0106         and #%00001111 ; UNITS
+               S01:FFFFFFFFFFFF8270:  29 0F
+F04:0107         cmp #10
+               S01:FFFFFFFFFFFF8272:  C9 0A
+F04:0108         bpl print_error
+               S01:FFFFFFFFFFFF8274:  10 20
+F04:0109       ;  jsr mult10
+F04:0110         clc
+               S01:FFFFFFFFFFFF8276:  18
+F04:0111         adc TENS
+               S01:FFFFFFFFFFFF8277:  6D 07 02
+F04:0112         sta HEX
+               S01:FFFFFFFFFFFF827A:  8D 09 02
+F04:0113       
+F04:0114         lda HEXB + 1 ; hi byte
+               S01:FFFFFFFFFFFF827D:  AD 0C 02
+F04:0115         and #%00001111
+               S01:FFFFFFFFFFFF8280:  29 0F
+F04:0116         cmp #10
+               S01:FFFFFFFFFFFF8282:  C9 0A
+F04:0117         bpl print_error
+               S01:FFFFFFFFFFFF8284:  10 10
+F04:0118         jsr mult10
+               S01:FFFFFFFFFFFF8286:  20 A6 82
+F04:0119         jsr mult10 ; hundreds
+               S01:FFFFFFFFFFFF8289:  20 A6 82
+F04:0120         adc HEX
+               S01:FFFFFFFFFFFF828C:  6D 09 02
+F04:0121         
+F04:0122         jsr bintohex
+               S01:FFFFFFFFFFFF828F:  20 30 81
+F04:0123         jmp exit_byte_to_hex
+               S01:FFFFFFFFFFFF8292:  4C A2 82
+F04:0124       
+F04:0125       error:
+F04:0126         pla
+               S01:FFFFFFFFFFFF8295:  68
+F04:0127       print_error:
+F04:0128         lda #<error_message
+               S01:FFFFFFFFFFFF8296:  A9 41
+F04:0129         sta MESSAGE_POINTER
+               S01:FFFFFFFFFFFF8298:  85 05
+F04:0130         lda #>error_message
+               S01:FFFFFFFFFFFF829A:  A9 86
+F04:0131         sta MESSAGE_POINTER + 1
+               S01:FFFFFFFFFFFF829C:  85 06
+F04:0132         jsr print
+               S01:FFFFFFFFFFFF829E:  20 18 84
+F04:0133         ;jsr lcd_cursor_off
+F04:0134         rts
+               S01:FFFFFFFFFFFF82A1:  60
+F04:0135       
+F04:0136       exit_byte_to_hex:
+F04:0137         jsr lcd_line_2
+               S01:FFFFFFFFFFFF82A2:  20 51 80
+F04:0138         
+F04:0139         rts
+               S01:FFFFFFFFFFFF82A5:  60
+F04:0140       
+F04:0141       
+F04:0142       
+F04:0143       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F04:0144       ;;
+F04:0145       ;;  (A * 8) + (A * 2) = A * 10 
+F04:0146       
+F04:0147       mult10:
+F04:0148         pha
+               S01:FFFFFFFFFFFF82A6:  48
+F04:0149         asl
+               S01:FFFFFFFFFFFF82A7:  0A
+F04:0150         asl
+               S01:FFFFFFFFFFFF82A8:  0A
+F04:0151         asl
+               S01:FFFFFFFFFFFF82A9:  0A
+F04:0152         sta TEMP2 ; A*8
+               S01:FFFFFFFFFFFF82AA:  8D 0E 02
+F04:0153         pla
+               S01:FFFFFFFFFFFF82AD:  68
+F04:0154         asl      ; A*2
+               S01:FFFFFFFFFFFF82AE:  0A
+F04:0155         adc TEMP2 ; A*10
+               S01:FFFFFFFFFFFF82AF:  6D 0E 02
+F04:0156         rts
+               S01:FFFFFFFFFFFF82B2:  60
+F04:0157       
+F04:0158       
+F04:0159       
+F04:0160       ;;;;;;;;;;;;;;;;;;;;;;;;;;
+F04:0161       ;;
+F04:0162       ;; Convert the encoded ASCII character representing a hex digit to its actual binary value.
+F04:0163       ;;
+F04:0164       ;; e.g. Letter "A" in ASCII is $41 (0100001) but its "numerical" value as a hex digit is 
+F04:0165       ;; 10 ($0A = 10d = %00001010). 
+F04:0166       ;; 
+F04:0167       ;; We convert "A" in ASCII ($41) to a byte of numerical value 10 by subtracting $37
+F04:0168       ;; $41 - $37 = $0A (in decimal 65 - 55 = 10) and the result is a byte 00001010
+F04:0169       ;; The same is done for all characters representing upper case letters.
+F04:0170       ;;
+F04:0171       ;; Numbers are handled differently according to their place on the ASCII table.
+F04:0172       ;;
+F04:0173       ;; The ASCII representation of "9" is $39 (00111001) and to get a byte with a value of 9 we can simply
+F04:0174       ;; AND it with a mask of 00001111 to save only the lower 4 bits.
+F04:0175       ;;
+F04:0176       
+F04:0177       ascii_bin:
+F04:0178         clc
+               S01:FFFFFFFFFFFF82B3:  18
+F04:0179         cmp #$41
+               S01:FFFFFFFFFFFF82B4:  C9 41
+F04:0180         bmi ascii_bin_num   ; a CMP with $41, from a number character ($30 - $39), will set the negative flag
+               S01:FFFFFFFFFFFF82B6:  30 07
+F04:0181                             ; and the conversion is done by ANDing with $0F
+F04:0182       
+F04:0183       ascii_bin_letter:    ; otherwise treat as a letter (A -> F) and the conversion is done by
+F04:0184         clc                ; subtracting $37
+               S01:FFFFFFFFFFFF82B8:  18
+F04:0185         sec
+               S01:FFFFFFFFFFFF82B9:  38
+F04:0186         sbc #$37
+               S01:FFFFFFFFFFFF82BA:  E9 37
+F04:0187         jmp end_ascii_bin
+               S01:FFFFFFFFFFFF82BC:  4C C1 82
+F04:0188       
+F04:0189       ascii_bin_num:
+F04:0190         and #%00001111
+               S01:FFFFFFFFFFFF82BF:  29 0F
+F04:0191       
+F04:0192       end_ascii_bin:      ; Accumulator holds the numerical version of the ASCII character supplied
+F04:0193         rts
+               S01:FFFFFFFFFFFF82C1:  60
+F04:0194       
+F04:0195       
+F04:0196       
+F04:0197       
+F00:0007         .include "./includes/rtc.inc"
+F05:0001       
+F05:0002       
+F05:0003       ;.SEGMENT "ZEROPAGE"
+F05:0004       
+F05:0005         
+F05:0006       
+F05:0007       
+F05:0008         .org $8000
+F05:0009       
+F05:0010         
+F05:0011       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F05:0012       ;;
+F05:0013       ;;                          RTC / Jiffy Tick
+F05:0014       ;;
+F05:0015       
+F05:0016       
+F05:0017       
+F05:0018       rtc:
+F05:0019       
+F05:0020       
+F05:0021       ;;  RTC stores ticks at 10ms intervals into a 4-byte (32 bit) value
+F05:0022       ;;
+F05:0023       ;;  as each byte rolls over the next one is incremented
+F05:0024       ;;  on a tick that doesn't roll over the TIME OF DAY 
+F05:0025       ;;  is updated
+F05:0026       
+F05:0027         inc TICKS
+               S01:FFFFFFFFFFFF82C2:  E6 10
+F05:0028         bne inc_MET
+               S01:FFFFFFFFFFFF82C4:  D0 0A
+F05:0029         inc TICKS + 1
+               S01:FFFFFFFFFFFF82C6:  E6 11
+F05:0030         bne inc_MET
+               S01:FFFFFFFFFFFF82C8:  D0 06
+F05:0031         inc TICKS + 2
+               S01:FFFFFFFFFFFF82CA:  E6 12
+F05:0032         bne inc_MET
+               S01:FFFFFFFFFFFF82CC:  D0 02
+F05:0033         inc TICKS + 3
+               S01:FFFFFFFFFFFF82CE:  E6 13
+F05:0034       
+F05:0035       ;;
+F05:0036       ;;  Every time it's called we increment the "hundredths of a second" byte
+F05:0037       ;;
+F05:0038       ;;  When there's been 100 x 10ms (i.e. 1 second) we increment the seconds
+F05:0039       ;;
+F05:0040       ;;  When SECONDS reaches 60 we increment MINUTES and reset SECONDS to zero...
+F05:0041       ;;  etc... for HOURS, DAYS etc.
+F05:0042       ;;
+F05:0043       ;;  days/months years are handled too - although probably moot
+F05:0044       ;;
+F05:0045       ;;  this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
+F05:0046       ;;
+F05:0047       inc_MET:
+F05:0048         inc CENTISEC
+               S01:FFFFFFFFFFFF82D0:  E6 14
+F05:0049         lda CENTISEC
+               S01:FFFFFFFFFFFF82D2:  A5 14
+F05:0050         cmp #100
+               S01:FFFFFFFFFFFF82D4:  C9 64
+F05:0051         bmi end_MET
+               S01:FFFFFFFFFFFF82D6:  30 40
+F05:0052         stz CENTISEC
+               S01:FFFFFFFFFFFF82D8:  64 14
+F05:0053       
+F05:0054         inc SECONDS
+               S01:FFFFFFFFFFFF82DA:  E6 1B
+F05:0055         lda SECONDS
+               S01:FFFFFFFFFFFF82DC:  A5 1B
+F05:0056         cmp #10
+               S01:FFFFFFFFFFFF82DE:  C9 0A
+F05:0057         bmi end_MET
+               S01:FFFFFFFFFFFF82E0:  30 36
+F05:0058         stz SECONDS
+               S01:FFFFFFFFFFFF82E2:  64 1B
+F05:0059         
+F05:0060         inc TEN_SECONDS
+               S01:FFFFFFFFFFFF82E4:  E6 1A
+F05:0061         lda TEN_SECONDS
+               S01:FFFFFFFFFFFF82E6:  A5 1A
+F05:0062         cmp #6
+               S01:FFFFFFFFFFFF82E8:  C9 06
+F05:0063         bmi end_MET
+               S01:FFFFFFFFFFFF82EA:  30 2C
+F05:0064         stz TEN_SECONDS
+               S01:FFFFFFFFFFFF82EC:  64 1A
+F05:0065       
+F05:0066         inc MINUTES
+               S01:FFFFFFFFFFFF82EE:  E6 19
+F05:0067         lda MINUTES
+               S01:FFFFFFFFFFFF82F0:  A5 19
+F05:0068         cmp #10
+               S01:FFFFFFFFFFFF82F2:  C9 0A
+F05:0069         bmi end_MET
+               S01:FFFFFFFFFFFF82F4:  30 22
+F05:0070         stz MINUTES
+               S01:FFFFFFFFFFFF82F6:  64 19
+F05:0071       
+F05:0072         inc TEN_MINUTES
+               S01:FFFFFFFFFFFF82F8:  E6 18
+F05:0073         lda TEN_MINUTES
+               S01:FFFFFFFFFFFF82FA:  A5 18
+F05:0074         cmp #6
+               S01:FFFFFFFFFFFF82FC:  C9 06
+F05:0075         bmi end_MET
+               S01:FFFFFFFFFFFF82FE:  30 18
+F05:0076         stz TEN_MINUTES
+               S01:FFFFFFFFFFFF8300:  64 18
+F05:0077       
+F05:0078         inc HRS
+               S01:FFFFFFFFFFFF8302:  E6 17
+F05:0079         lda HRS
+               S01:FFFFFFFFFFFF8304:  A5 17
+F05:0080         cmp #10
+               S01:FFFFFFFFFFFF8306:  C9 0A
+F05:0081         bmi end_MET
+               S01:FFFFFFFFFFFF8308:  30 0E
+F05:0082         stz HRS
+               S01:FFFFFFFFFFFF830A:  64 17
+F05:0083       
+F05:0084         inc TEN_HRS
+               S01:FFFFFFFFFFFF830C:  E6 16
+F05:0085         lda TEN_HRS
+               S01:FFFFFFFFFFFF830E:  A5 16
+F05:0086         cmp #10
+               S01:FFFFFFFFFFFF8310:  C9 0A
+F05:0087         bmi end_MET
+               S01:FFFFFFFFFFFF8312:  30 04
+F05:0088         stz TEN_HRS
+               S01:FFFFFFFFFFFF8314:  64 16
+F05:0089       
+F05:0090         inc HUNDRED_HRS
+               S01:FFFFFFFFFFFF8316:  E6 15
+F05:0091       
+F05:0092       end_MET:
+F05:0093         rts
+               S01:FFFFFFFFFFFF8318:  60
+F05:0094       
+F05:0095       
+F00:0008       
+F00:0009       
+F00:0010       ;.SEGMENT "ZEROPAGE"
+F00:0011       ;.zeropage
+F00:0012       
+F00:0013       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0014       ;;
+F00:0015       ;;      MEMORY ALLOCATIONS
+F00:0016       ;;
+F00:0017       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0018       
+F00:0019       ;DUMP_POINTER     = $00 ; 2
+F00:0020       ;FLAGS            = $02 ; 1
+F00:0021       ;TOGGLE_TIME      = $03 ; 1
+F00:0022       ;CLOCK_LAST       = $04 ; 1
+F00:0023       ;MESSAGE_POINTER  = $05 ; 2
+F00:0024       ;LED_LAST         = $07 ; 1
+F00:0025       
+F00:0026       ;TICKS            = $10 ; 4
+F00:0027       ;CENTISEC         = $14 ; 1
+F00:0028       ;HUNDRED_HRS      = $15 ; 1
+F00:0029       ;TEN_HRS          = $16 ; 1
+F00:0030       ;HRS              = $17 ; 1
+F00:0031       ;TEN_MINUTES      = $18 ; 1
+F00:0032       ;MINUTES          = $19 ; 1
+F00:0033       ;TEN_SECONDS      = $1A ; 1
+F00:0034       ;SECONDS          = $1B ; 1
+F00:0035       
+F00:0036       ;INKEY            = $0200 ; 1
+F00:0037       ;ASCII            = $0201 ; 4
+F00:0038       ;BYTE             = $0205 ; 2
+F00:0039       ;TENS             = $0207 ; 1
+F00:0040       ;HUNDREDS         = $0208 ; 1
+F00:0041       ;HEX              = $0209 ; 2
+F00:0042       ;HEXB             = $020B ; 2
+F00:0043       ;TEMP             = $020D ; 1
+F00:0044       ;TEMP2            = $020E ; 1
+F00:0045       
+F00:0046       
+F00:0047       ;; ZERO PAGE
+F00:0048       
+F00:0049       DUMP_POINTER    = $00 ; 2
+F00:0050       FLAGS           = $02 ; 1
+F00:0051       TOGGLE_TIME     = $03 ; 1
+F00:0052       CLOCK_LAST      = $04 ; 1
+F00:0053       MESSAGE_POINTER = $05 ; 2
+F00:0054       LED_LAST        = $07 ; 1
+F00:0055       
+F00:0056       TICKS       = $10 ; 4
+F00:0057       CENTISEC    = $14 ; 1
+F00:0058       HUNDRED_HRS = $15 ; 1
+F00:0059       TEN_HRS     = $16 ; 1
+F00:0060       HRS         = $17 ; 1
+F00:0061       TEN_MINUTES = $18 ; 1
+F00:0062       MINUTES     = $19 ; 1
+F00:0063       TEN_SECONDS = $1A ; 1
+F00:0064       SECONDS     = $1B ; 1
+F00:0065       
+F00:0066       
+F00:0067       
+F00:0068       ;; LOW RAM $200 ->
+F00:0069       ;;
+F00:0070       INKEY     = $0200 ; 1
+F00:0071       ASCII     = $0201 ; 4
+F00:0072       BYTE      = $0205 ; 2
+F00:0073       TENS      = $0207 ; 1
+F00:0074       HUNDREDS  = $0208 ; 1
+F00:0075       HEX       = $0209 ; 2
+F00:0076       HEXB      = $020B ; 2
+F00:0077       TEMP      = $020D ; 1
+F00:0078       TEMP2     = $020E ; 1
+F00:0079       
+F00:0080       
+F00:0081       ;.code
+F00:0082       
+F00:0083         .org $8000
+F00:0084       
+F00:0085       reset:
+F00:0086         ldx #$ff
+               S01:FFFFFFFFFFFF8319:  A2 FF
+F00:0087         txs
+               S01:FFFFFFFFFFFF831B:  9A
+F00:0088       
+F00:0089         cli      ; interrupts ON
+               S01:FFFFFFFFFFFF831C:  58
+F00:0090       
+F00:0091         jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
+               S01:FFFFFFFFFFFF831D:  20 00 80
+F00:0092         jsr lcd_init ; set-up 4-bit mode 
+               S01:FFFFFFFFFFFF8320:  20 89 80
+F00:0093         jsr lcd_start ; set-up various features of lcd 
+               S01:FFFFFFFFFFFF8323:  20 24 80
+F00:0094       
+F00:0095       init_variables:
+F00:0096         stz TICKS
+               S01:FFFFFFFFFFFF8326:  64 10
+F00:0097         stz TICKS + 1
+               S01:FFFFFFFFFFFF8328:  64 11
+F00:0098         stz TICKS + 2
+               S01:FFFFFFFFFFFF832A:  64 12
+F00:0099         stz TICKS + 3
+               S01:FFFFFFFFFFFF832C:  64 13
+F00:0100         stz DUMP_POINTER
+               S01:FFFFFFFFFFFF832E:  64 00
+F00:0101         stz DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8330:  64 01
+F00:0102         stz MESSAGE_POINTER
+               S01:FFFFFFFFFFFF8332:  64 05
+F00:0103         stz MESSAGE_POINTER + 1
+               S01:FFFFFFFFFFFF8334:  64 06
+F00:0104         stz TOGGLE_TIME
+               S01:FFFFFFFFFFFF8336:  64 03
+F00:0105         stz CLOCK_LAST
+               S01:FFFFFFFFFFFF8338:  64 04
+F00:0106         stz LED_LAST
+               S01:FFFFFFFFFFFF833A:  64 07
+F00:0107         stz CENTISEC
+               S01:FFFFFFFFFFFF833C:  64 14
+F00:0108         stz FLAGS
+               S01:FFFFFFFFFFFF833E:  64 02
+F00:0109         stz SECONDS
+               S01:FFFFFFFFFFFF8340:  64 1B
+F00:0110         stz TEN_SECONDS
+               S01:FFFFFFFFFFFF8342:  64 1A
+F00:0111         stz MINUTES
+               S01:FFFFFFFFFFFF8344:  64 19
+F00:0112         stz HRS
+               S01:FFFFFFFFFFFF8346:  64 17
+F00:0113         stz TEN_HRS
+               S01:FFFFFFFFFFFF8348:  64 16
+F00:0114         stz TEN_MINUTES
+               S01:FFFFFFFFFFFF834A:  64 18
+F00:0115         stz HUNDRED_HRS
+               S01:FFFFFFFFFFFF834C:  64 15
+F00:0116         stz TEMP
+               S01:FFFFFFFFFFFF834E:  9C 0D 02
+F00:0117         stz TEMP2
+               S01:FFFFFFFFFFFF8351:  9C 0E 02
+F00:0118         stz TENS  
+               S01:FFFFFFFFFFFF8354:  9C 07 02
+F00:0119       
+F00:0120         
+F00:0121       
+F00:0122       ; put a precautionary RTS at end of "user" RAM area @ $30ff
+F00:0123       ; the "GO" function (<SHIFT>5) performs a "jsr $3000" to run
+F00:0124       ; whatever code has been entered into RAM at $3000 and
+F00:0125       ; we put RTS at $30ff to ensure the code returns when <SHIFT>5 is pressed
+F00:0126       ; even if nothing (or garbage) has been entered
+F00:0127       
+F00:0128       user_ram:
+F00:0129         lda #$60
+               S01:FFFFFFFFFFFF8357:  A9 60
+F00:0130         sta $30ff
+               S01:FFFFFFFFFFFF8359:  8D FF 30
+F00:0131         
+F00:0132         
+F00:0133       ; go straight to MONITOR at startup
+F00:0134         lda #<splash
+               S01:FFFFFFFFFFFF835C:  A9 3C
+F00:0135         sta MESSAGE_POINTER
+               S01:FFFFFFFFFFFF835E:  85 05
+F00:0136         lda #>splash
+               S01:FFFFFFFFFFFF8360:  A9 86
+F00:0137         sta MESSAGE_POINTER + 1
+               S01:FFFFFFFFFFFF8362:  85 06
+F00:0138         jsr new_address
+               S01:FFFFFFFFFFFF8364:  20 C7 83
+F00:0139       
+F00:0140       ; main loop
+F00:0141       loop:
+F00:0142         wai
+               S01:FFFFFFFFFFFF8367:  CB
+F00:0143         jsr check_flags
+               S01:FFFFFFFFFFFF8368:  20 6E 83
+F00:0144         ;jsr toggle_led
+F00:0145         jmp loop
+               S01:FFFFFFFFFFFF836B:  4C 67 83
+F00:0146       
+F00:0147       
+F00:0148       ;;;;;;;;;;;;; FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0149       ;;
+F00:0150       ;;
+F00:0151       
+F00:0152       check_flags:
+F00:0153         bbs0 FLAGS, update_block_address
+               S01:FFFFFFFFFFFF836E:  8F 02 04
+F00:0154         bbs5 FLAGS, clock_time
+               S01:FFFFFFFFFFFF8371:  DF 02 12
+F00:0155         ; check other flags... other actions....
+F00:0156         rts
+               S01:FFFFFFFFFFFF8374:  60
+F00:0157       
+F00:0158       update_block_address:
+F00:0159         sec
+               S01:FFFFFFFFFFFF8375:  38
+F00:0160         lda TICKS
+               S01:FFFFFFFFFFFF8376:  A5 10
+F00:0161         sbc TOGGLE_TIME
+               S01:FFFFFFFFFFFF8378:  E5 03
+F00:0162         cmp #$32
+               S01:FFFFFFFFFFFF837A:  C9 32
+F00:0163         bcc exit_update_block
+               S01:FFFFFFFFFFFF837C:  90 07
+F00:0164         jsr block_address
+               S01:FFFFFFFFFFFF837E:  20 F6 83
+F00:0165         lda TICKS
+               S01:FFFFFFFFFFFF8381:  A5 10
+F00:0166         sta TOGGLE_TIME
+               S01:FFFFFFFFFFFF8383:  85 03
+F00:0167         
+F00:0168       exit_update_block:
+F00:0169         rts
+               S01:FFFFFFFFFFFF8385:  60
+F00:0170       
+F00:0171       
+F00:0172       clock_time:
+F00:0173       
+F00:0174         sec
+               S01:FFFFFFFFFFFF8386:  38
+F00:0175         lda TICKS
+               S01:FFFFFFFFFFFF8387:  A5 10
+F00:0176         sbc CLOCK_LAST
+               S01:FFFFFFFFFFFF8389:  E5 04
+F00:0177         cmp #$32
+               S01:FFFFFFFFFFFF838B:  C9 32
+F00:0178         bcc exit_clock
+               S01:FFFFFFFFFFFF838D:  90 37
+F00:0179         
+F00:0180         jsr lcd_cursor_off
+               S01:FFFFFFFFFFFF838F:  20 45 80
+F00:0181         
+F00:0182         jsr lcd_home
+               S01:FFFFFFFFFFFF8392:  20 39 80
+F00:0183         
+F00:0184         lda HUNDRED_HRS
+               S01:FFFFFFFFFFFF8395:  A5 15
+F00:0185         jsr bintoascii
+               S01:FFFFFFFFFFFF8397:  20 57 81
+F00:0186         lda TEN_HRS
+               S01:FFFFFFFFFFFF839A:  A5 16
+F00:0187         jsr bintoascii
+               S01:FFFFFFFFFFFF839C:  20 57 81
+F00:0188         lda HRS
+               S01:FFFFFFFFFFFF839F:  A5 17
+F00:0189         jsr bintoascii
+               S01:FFFFFFFFFFFF83A1:  20 57 81
+F00:0190         lda #':'
+               S01:FFFFFFFFFFFF83A4:  A9 3A
+F00:0191         jsr print_char
+               S01:FFFFFFFFFFFF83A6:  20 BF 80
+F00:0192         lda TEN_MINUTES
+               S01:FFFFFFFFFFFF83A9:  A5 18
+F00:0193         jsr bintoascii
+               S01:FFFFFFFFFFFF83AB:  20 57 81
+F00:0194         lda MINUTES
+               S01:FFFFFFFFFFFF83AE:  A5 19
+F00:0195         jsr bintoascii
+               S01:FFFFFFFFFFFF83B0:  20 57 81
+F00:0196         lda #':'
+               S01:FFFFFFFFFFFF83B3:  A9 3A
+F00:0197         jsr print_char
+               S01:FFFFFFFFFFFF83B5:  20 BF 80
+F00:0198         lda TEN_SECONDS
+               S01:FFFFFFFFFFFF83B8:  A5 1A
+F00:0199         jsr bintoascii
+               S01:FFFFFFFFFFFF83BA:  20 57 81
+F00:0200         lda SECONDS
+               S01:FFFFFFFFFFFF83BD:  A5 1B
+F00:0201         jsr bintoascii
+               S01:FFFFFFFFFFFF83BF:  20 57 81
+F00:0202         lda TICKS
+               S01:FFFFFFFFFFFF83C2:  A5 10
+F00:0203         sta CLOCK_LAST
+               S01:FFFFFFFFFFFF83C4:  85 04
+F00:0204       exit_clock:
+F00:0205         rts
+               S01:FFFFFFFFFFFF83C6:  60
+F00:0206       
+F00:0207       
+F00:0208       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0209       ;;
+F00:0210       ;;      update screen when new memory location is selected
+F00:0211       ;;
+F00:0212       ;;
+F00:0213       new_address:
+F00:0214         
+F00:0215         jsr lcd_clear
+               S01:FFFFFFFFFFFF83C7:  20 3F 80
+F00:0216         
+F00:0217         jsr lcd_cursor_on
+               S01:FFFFFFFFFFFF83CA:  20 4B 80
+F00:0218       
+F00:0219       
+F00:0220       print_address:
+F00:0221         lda #'$'
+               S01:FFFFFFFFFFFF83CD:  A9 24
+F00:0222         jsr print_char
+               S01:FFFFFFFFFFFF83CF:  20 BF 80
+F00:0223         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF83D2:  A5 01
+F00:0224         jsr bintohex
+               S01:FFFFFFFFFFFF83D4:  20 30 81
+F00:0225         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF83D7:  A5 00
+F00:0226         jsr bintohex
+               S01:FFFFFFFFFFFF83D9:  20 30 81
+F00:0227       
+F00:0228         lda #' '
+               S01:FFFFFFFFFFFF83DC:  A9 20
+F00:0229         jsr print_char
+               S01:FFFFFFFFFFFF83DE:  20 BF 80
+F00:0230       
+F00:0231       print_data:
+F00:0232       
+F00:0233         ldy #$00
+               S01:FFFFFFFFFFFF83E1:  A0 00
+F00:0234       
+F00:0235         lda (DUMP_POINTER),y
+               S01:FFFFFFFFFFFF83E3:  B1 00
+F00:0236         jsr bintohex
+               S01:FFFFFFFFFFFF83E5:  20 30 81
+F00:0237         lda #' '
+               S01:FFFFFFFFFFFF83E8:  A9 20
+F00:0238         jsr print_char
+               S01:FFFFFFFFFFFF83EA:  20 BF 80
+F00:0239         lda (DUMP_POINTER),y
+               S01:FFFFFFFFFFFF83ED:  B1 00
+F00:0240         jsr print_char
+               S01:FFFFFFFFFFFF83EF:  20 BF 80
+F00:0241       
+F00:0242       message_end:
+F00:0243         jsr print   ; add second line (cursor) after re-writing the top line
+               S01:FFFFFFFFFFFF83F2:  20 18 84
+F00:0244         rts
+               S01:FFFFFFFFFFFF83F5:  60
+F00:0245       
+F00:0246       
+F00:0247       
+F00:0248       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0249       ;;
+F00:0250       ;; display 8 bytes of data for a "block" of memory
+F00:0251       ;;
+F00:0252       ;;
+F00:0253       block_address:
+F00:0254         
+F00:0255         jsr lcd_clear
+               S01:FFFFFFFFFFFF83F6:  20 3F 80
+F00:0256       
+F00:0257         ldy #$00
+               S01:FFFFFFFFFFFF83F9:  A0 00
+F00:0258       
+F00:0259       print_block_address:
+F00:0260         lda #'$'
+               S01:FFFFFFFFFFFF83FB:  A9 24
+F00:0261         jsr print_char
+               S01:FFFFFFFFFFFF83FD:  20 BF 80
+F00:0262         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8400:  A5 01
+F00:0263         jsr bintohex
+               S01:FFFFFFFFFFFF8402:  20 30 81
+F00:0264         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF8405:  A5 00
+F00:0265         jsr bintohex
+               S01:FFFFFFFFFFFF8407:  20 30 81
+F00:0266       
+F00:0267         jsr lcd_line_2
+               S01:FFFFFFFFFFFF840A:  20 51 80
+F00:0268         
+F00:0269       print_block:
+F00:0270       
+F00:0271         lda (DUMP_POINTER),y
+               S01:FFFFFFFFFFFF840D:  B1 00
+F00:0272         jsr bintohex
+               S01:FFFFFFFFFFFF840F:  20 30 81
+F00:0273         ;lda (DUMP_POINTER),y
+F00:0274         iny
+               S01:FFFFFFFFFFFF8412:  C8
+F00:0275         cpy #$08
+               S01:FFFFFFFFFFFF8413:  C0 08
+F00:0276         bne print_block
+               S01:FFFFFFFFFFFF8415:  D0 F6
+F00:0277       
+F00:0278       
+F00:0279       block_message_end:
+F00:0280         rts
+               S01:FFFFFFFFFFFF8417:  60
+F00:0281       
+F00:0282       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0283       ;;
+F00:0284       ;; re-draw line 2 cursor
+F00:0285       ;;
+F00:0286       ;;
+F00:0287       print:
+F00:0288         
+F00:0289         jsr lcd_line_2
+               S01:FFFFFFFFFFFF8418:  20 51 80
+F00:0290       
+F00:0291         ldy #0
+               S01:FFFFFFFFFFFF841B:  A0 00
+F00:0292       line1:
+F00:0293         lda (MESSAGE_POINTER),y
+               S01:FFFFFFFFFFFF841D:  B1 05
+F00:0294         beq end_print
+               S01:FFFFFFFFFFFF841F:  F0 07
+F00:0295         jsr print_char
+               S01:FFFFFFFFFFFF8421:  20 BF 80
+F00:0296         iny
+               S01:FFFFFFFFFFFF8424:  C8
+F00:0297         jmp line1
+               S01:FFFFFFFFFFFF8425:  4C 1D 84
+F00:0298       
+F00:0299       end_print:
+F00:0300       
+F00:0301         rts
+               S01:FFFFFFFFFFFF8428:  60
+F00:0302       
+F00:0303       
+F00:0304       
+F00:0305       
+F00:0306       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0307       ;;
+F00:0308       ;;      Monitor function - decrement the selected address 
+F00:0309       ;;
+F00:0310       ;;
+F00:0311       decrement_address:
+F00:0312       
+F00:0313         sec
+               S01:FFFFFFFFFFFF8429:  38
+F00:0314         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF842A:  A5 00
+F00:0315         sbc #$01
+               S01:FFFFFFFFFFFF842C:  E9 01
+F00:0316         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF842E:  85 00
+F00:0317         sta BYTE
+               S01:FFFFFFFFFFFF8430:  8D 05 02
+F00:0318         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8433:  A5 01
+F00:0319         sbc #$00
+               S01:FFFFFFFFFFFF8435:  E9 00
+F00:0320         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8437:  85 01
+F00:0321         sta BYTE + 1
+               S01:FFFFFFFFFFFF8439:  8D 06 02
+F00:0322       dec_ok:
+F00:0323         rts
+               S01:FFFFFFFFFFFF843C:  60
+F00:0324       
+F00:0325       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0326       ;;
+F00:0327       ;;      Monitor function - increment the selected address 
+F00:0328       ;;
+F00:0329       ;;
+F00:0330       
+F00:0331       increment_address:
+F00:0332       
+F00:0333         clc
+               S01:FFFFFFFFFFFF843D:  18
+F00:0334         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF843E:  A5 00
+F00:0335         adc #$01
+               S01:FFFFFFFFFFFF8440:  69 01
+F00:0336         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF8442:  85 00
+F00:0337         sta BYTE
+               S01:FFFFFFFFFFFF8444:  8D 05 02
+F00:0338         ;bcc inc_ok
+F00:0339         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8447:  A5 01
+F00:0340         adc #$00
+               S01:FFFFFFFFFFFF8449:  69 00
+F00:0341         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF844B:  85 01
+F00:0342         sta BYTE + 1
+               S01:FFFFFFFFFFFF844D:  8D 06 02
+F00:0343       inc_ok:
+F00:0344         rts
+               S01:FFFFFFFFFFFF8450:  60
+F00:0345       
+F00:0346       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0347       ;;
+F00:0348       ;;      Monitor function - increment the selected block of  addresses by 8 
+F00:0349       ;;
+F00:0350       ;;
+F00:0351       
+F00:0352       increment_block:
+F00:0353         clc
+               S01:FFFFFFFFFFFF8451:  18
+F00:0354         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF8452:  A5 00
+F00:0355         adc #$08
+               S01:FFFFFFFFFFFF8454:  69 08
+F00:0356         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF8456:  85 00
+F00:0357         sta BYTE
+               S01:FFFFFFFFFFFF8458:  8D 05 02
+F00:0358         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF845B:  A5 01
+F00:0359         adc #$00
+               S01:FFFFFFFFFFFF845D:  69 00
+F00:0360         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF845F:  85 01
+F00:0361         sta BYTE + 1
+               S01:FFFFFFFFFFFF8461:  8D 06 02
+F00:0362         rts
+               S01:FFFFFFFFFFFF8464:  60
+F00:0363       
+F00:0364       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0365       ;;
+F00:0366       ;;      Monitor function - decrement the selected block of  addresses by 8 
+F00:0367       ;;
+F00:0368       ;;
+F00:0369       
+F00:0370       decrement_block:
+F00:0371       
+F00:0372         sec
+               S01:FFFFFFFFFFFF8465:  38
+F00:0373         lda DUMP_POINTER
+               S01:FFFFFFFFFFFF8466:  A5 00
+F00:0374         sbc #$08
+               S01:FFFFFFFFFFFF8468:  E9 08
+F00:0375         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF846A:  85 00
+F00:0376         sta BYTE
+               S01:FFFFFFFFFFFF846C:  8D 05 02
+F00:0377         lda DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF846F:  A5 01
+F00:0378         sbc #$00
+               S01:FFFFFFFFFFFF8471:  E9 00
+F00:0379         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF8473:  85 01
+F00:0380         sta BYTE + 1
+               S01:FFFFFFFFFFFF8475:  8D 06 02
+F00:0381         rts
+               S01:FFFFFFFFFFFF8478:  60
+F00:0382       
+F00:0383       
+F00:0384       
+F00:0385       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0386       ;;
+F00:0387       ;;          use last 4 entered ASCII characters from the keypad and convert 
+F00:0388       ;;          them to TWO 8-bit binary bytes in RAM
+F00:0389       ;;
+F00:0390       ;;
+F00:0391       ascii_byte:
+F00:0392       
+F00:0393         lda ASCII + 1
+               S01:FFFFFFFFFFFF8479:  AD 02 02
+F00:0394       
+F00:0395         jsr ascii_bin
+               S01:FFFFFFFFFFFF847C:  20 B3 82
+F00:0396         clc
+               S01:FFFFFFFFFFFF847F:  18
+F00:0397         asl
+               S01:FFFFFFFFFFFF8480:  0A
+F00:0398         asl
+               S01:FFFFFFFFFFFF8481:  0A
+F00:0399         asl
+               S01:FFFFFFFFFFFF8482:  0A
+F00:0400         asl
+               S01:FFFFFFFFFFFF8483:  0A
+F00:0401         sta BYTE
+               S01:FFFFFFFFFFFF8484:  8D 05 02
+F00:0402       
+F00:0403         lda ASCII
+               S01:FFFFFFFFFFFF8487:  AD 01 02
+F00:0404         
+F00:0405         jsr ascii_bin
+               S01:FFFFFFFFFFFF848A:  20 B3 82
+F00:0406         ora BYTE
+               S01:FFFFFFFFFFFF848D:  0D 05 02
+F00:0407         sta BYTE
+               S01:FFFFFFFFFFFF8490:  8D 05 02
+F00:0408       
+F00:0409         lda ASCII + 3
+               S01:FFFFFFFFFFFF8493:  AD 04 02
+F00:0410         jsr ascii_bin
+               S01:FFFFFFFFFFFF8496:  20 B3 82
+F00:0411         clc
+               S01:FFFFFFFFFFFF8499:  18
+F00:0412         asl
+               S01:FFFFFFFFFFFF849A:  0A
+F00:0413         asl
+               S01:FFFFFFFFFFFF849B:  0A
+F00:0414         asl
+               S01:FFFFFFFFFFFF849C:  0A
+F00:0415         asl
+               S01:FFFFFFFFFFFF849D:  0A
+F00:0416         sta BYTE + 1
+               S01:FFFFFFFFFFFF849E:  8D 06 02
+F00:0417       
+F00:0418         lda ASCII + 2
+               S01:FFFFFFFFFFFF84A1:  AD 03 02
+F00:0419         
+F00:0420         jsr ascii_bin
+               S01:FFFFFFFFFFFF84A4:  20 B3 82
+F00:0421         ora BYTE + 1
+               S01:FFFFFFFFFFFF84A7:  0D 06 02
+F00:0422         sta BYTE + 1
+               S01:FFFFFFFFFFFF84AA:  8D 06 02
+F00:0423         rts
+               S01:FFFFFFFFFFFF84AD:  60
+F00:0424       
+F00:0425       
+F00:0426       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0427       ;;
+F00:0428       ;;    toggle the display/update of Clock on each appropriate keypress
+F00:0429       ;;
+F00:0430       toggle_clock:
+F00:0431         
+F00:0432         bbs5 FLAGS, reset_bit5
+               S01:FFFFFFFFFFFF84AE:  DF 02 05
+F00:0433         smb5 FLAGS
+               S01:FFFFFFFFFFFF84B1:  D7 02
+F00:0434         jmp exit_toggle_clock
+               S01:FFFFFFFFFFFF84B3:  4C B8 84
+F00:0435       
+F00:0436       reset_bit5:
+F00:0437       
+F00:0438         rmb5 FLAGS
+               S01:FFFFFFFFFFFF84B6:  57 02
+F00:0439       
+F00:0440       exit_toggle_clock:
+F00:0441         
+F00:0442         rts
+               S01:FFFFFFFFFFFF84B8:  60
+F00:0443         ;jmp debounce
+F00:0444       
+F00:0445       toggle_led:
+F00:0446         sec
+               S01:FFFFFFFFFFFF84B9:  38
+F00:0447         lda TICKS
+               S01:FFFFFFFFFFFF84BA:  A5 10
+F00:0448         sbc LED_LAST
+               S01:FFFFFFFFFFFF84BC:  E5 07
+F00:0449         cmp #100
+               S01:FFFFFFFFFFFF84BE:  C9 64
+F00:0450         bcc exit_led
+               S01:FFFFFFFFFFFF84C0:  90 0C
+F00:0451         lda PORTB_1
+               S01:FFFFFFFFFFFF84C2:  AD 00 60
+F00:0452         eor #%00100000
+               S01:FFFFFFFFFFFF84C5:  49 20
+F00:0453         sta PORTB_1
+               S01:FFFFFFFFFFFF84C7:  8D 00 60
+F00:0454         lda TICKS
+               S01:FFFFFFFFFFFF84CA:  A5 10
+F00:0455         sta LED_LAST
+               S01:FFFFFFFFFFFF84CC:  85 07
+F00:0456       exit_led:
+F00:0457         rts  
+               S01:FFFFFFFFFFFF84CE:  60
+F00:0458       
+F00:0459       
+F00:0460       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0461       ;;
+F00:0462       ;;    toggle the automatic update view of the "8-byte memory block"
+F00:0463       ;;
+F00:0464       toggle_block:
+F00:0465         
+F00:0466         bbs0 FLAGS, reset_bit0
+               S01:FFFFFFFFFFFF84CF:  8F 02 05
+F00:0467         smb0 FLAGS
+               S01:FFFFFFFFFFFF84D2:  87 02
+F00:0468         jmp exit_toggle_block
+               S01:FFFFFFFFFFFF84D4:  4C D9 84
+F00:0469       
+F00:0470       reset_bit0:
+F00:0471       
+F00:0472         rmb0 FLAGS
+               S01:FFFFFFFFFFFF84D7:  07 02
+F00:0473       
+F00:0474       exit_toggle_block:
+F00:0475       
+F00:0476         rts
+               S01:FFFFFFFFFFFF84D9:  60
+F00:0477         ;jmp debounce
+F00:0478       
+F00:0479       ;debounce:
+F00:0480       ;  ldx #$ff
+F00:0481       ;  ldy #$ff
+F00:0482       ;delay:
+F00:0483       ;  nop
+F00:0484       ;  dex
+F00:0485       ;  bne delay
+F00:0486       ;  dey
+F00:0487       ;  bne delay
+F00:0488       ;  rts  
+F00:0489         
+F00:0490       
+F00:0491       ;;;;;;;;;;;;;;;;;; INTERRUPT HANDLERS ;;;;;;;;;;;;;;;;;;;;
+F00:0492       
+F00:0493       
+F00:0494       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0495       ;;
+F00:0496       ;;      CB1 : reset & restart timer
+F00:0497       ;;
+F00:0498       
+F00:0499       cb1_handler:
+F00:0500         stz HUNDRED_HRS
+               S01:FFFFFFFFFFFF84DA:  64 15
+F00:0501         stz TEN_HRS
+               S01:FFFFFFFFFFFF84DC:  64 16
+F00:0502         stz TEN_MINUTES
+               S01:FFFFFFFFFFFF84DE:  64 18
+F00:0503         stz TEN_SECONDS
+               S01:FFFFFFFFFFFF84E0:  64 1A
+F00:0504         stz HRS
+               S01:FFFFFFFFFFFF84E2:  64 17
+F00:0505         stz MINUTES
+               S01:FFFFFFFFFFFF84E4:  64 19
+F00:0506         stz SECONDS
+               S01:FFFFFFFFFFFF84E6:  64 1B
+F00:0507       
+F00:0508         ;smb5 FLAGS
+F00:0509       
+F00:0510         rts
+               S01:FFFFFFFFFFFF84E8:  60
+F00:0511       
+F00:0512       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0513       ;;
+F00:0514       ;;     CB2 : lap-time pause timer
+F00:0515       ;;
+F00:0516       
+F00:0517       cb2_handler:
+F00:0518         jsr toggle_clock
+               S01:FFFFFFFFFFFF84E9:  20 AE 84
+F00:0519         rts
+               S01:FFFFFFFFFFFF84EC:  60
+F00:0520         
+F00:0521       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0522       ;;
+F00:0523       ;;                    MONITOR / KEYPAD 
+F00:0524       ;;
+F00:0525       ;;
+F00:0526       
+F00:0527       keypad_handler:
+F00:0528       
+F00:0529         jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
+               S01:FFFFFFFFFFFF84ED:  20 E9 80
+F00:0530         sta INKEY       ; put the ASCII value of input into RAM ( $00 ) 
+               S01:FFFFFFFFFFFF84F0:  8D 00 02
+F00:0531         
+F00:0532         lda PORTB_1       ; check for SHIFT/INSTRUCTION button
+               S01:FFFFFFFFFFFF84F3:  AD 00 60
+F00:0533         and #%10000000
+               S01:FFFFFFFFFFFF84F6:  29 80
+F00:0534         beq check_keypress ; done this way to get around the limit in size of branch jumps....
+               S01:FFFFFFFFFFFF84F8:  F0 03
+F00:0535         jmp handle_new_char
+               S01:FFFFFFFFFFFF84FA:  4C CE 85
+F00:0536         
+F00:0537       check_keypress:
+F00:0538         lda INKEY       
+               S01:FFFFFFFFFFFF84FD:  AD 00 02
+F00:0539       
+F00:0540       ; choose action of "SHIFTed" key-press
+F00:0541       check_a:
+F00:0542         cmp #'A'
+               S01:FFFFFFFFFFFF8500:  C9 41
+F00:0543         ; move up one memory address and display contents
+F00:0544         bne check_b     
+               S01:FFFFFFFFFFFF8502:  D0 09
+F00:0545         jsr increment_address
+               S01:FFFFFFFFFFFF8504:  20 3D 84
+F00:0546         jsr new_address
+               S01:FFFFFFFFFFFF8507:  20 C7 83
+F00:0547         jmp exit_key_irq
+               S01:FFFFFFFFFFFF850A:  4C EC 85
+F00:0548       
+F00:0549       check_b:
+F00:0550         cmp #'B'
+               S01:FFFFFFFFFFFF850D:  C9 42
+F00:0551         ; move down one memory address and display contents
+F00:0552         bne check_c
+               S01:FFFFFFFFFFFF850F:  D0 09
+F00:0553         jsr decrement_address
+               S01:FFFFFFFFFFFF8511:  20 29 84
+F00:0554         jsr new_address
+               S01:FFFFFFFFFFFF8514:  20 C7 83
+F00:0555         jmp exit_key_irq
+               S01:FFFFFFFFFFFF8517:  4C EC 85
+F00:0556       
+F00:0557       check_c:
+F00:0558         cmp #'C'
+               S01:FFFFFFFFFFFF851A:  C9 43
+F00:0559         ; return to MONITOR
+F00:0560         bne check_d
+               S01:FFFFFFFFFFFF851C:  D0 13
+F00:0561         rmb5 FLAGS
+               S01:FFFFFFFFFFFF851E:  57 02
+F00:0562         jsr lcd_clear
+               S01:FFFFFFFFFFFF8520:  20 3F 80
+F00:0563         lda #<splash
+               S01:FFFFFFFFFFFF8523:  A9 3C
+F00:0564         sta MESSAGE_POINTER
+               S01:FFFFFFFFFFFF8525:  85 05
+F00:0565         lda #>splash
+               S01:FFFFFFFFFFFF8527:  A9 86
+F00:0566         sta MESSAGE_POINTER + 1
+               S01:FFFFFFFFFFFF8529:  85 06
+F00:0567         
+F00:0568         jsr new_address
+               S01:FFFFFFFFFFFF852B:  20 C7 83
+F00:0569         jmp exit_key_irq
+               S01:FFFFFFFFFFFF852E:  4C EC 85
+F00:0570       
+F00:0571       check_d:
+F00:0572         cmp #'D'
+               S01:FFFFFFFFFFFF8531:  C9 44
+F00:0573         ; move monitor to entered 4-digit memory address
+F00:0574         bne check_e
+               S01:FFFFFFFFFFFF8533:  D0 13
+F00:0575         lda BYTE
+               S01:FFFFFFFFFFFF8535:  AD 05 02
+F00:0576         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF8538:  85 00
+F00:0577         lda BYTE + 1
+               S01:FFFFFFFFFFFF853A:  AD 06 02
+F00:0578         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF853D:  85 01
+F00:0579         jsr new_address
+               S01:FFFFFFFFFFFF853F:  20 C7 83
+F00:0580         jsr print
+               S01:FFFFFFFFFFFF8542:  20 18 84
+F00:0581         jmp exit_key_irq
+               S01:FFFFFFFFFFFF8545:  4C EC 85
+F00:0582       
+F00:0583       check_e:
+F00:0584         cmp #'E'
+               S01:FFFFFFFFFFFF8548:  C9 45
+F00:0585         ; insert (POKE) byte of data in to current memory address, then increment to next address
+F00:0586         bne check_f
+               S01:FFFFFFFFFFFF854A:  D0 13
+F00:0587         lda BYTE
+               S01:FFFFFFFFFFFF854C:  AD 05 02
+F00:0588         ldy #$00
+               S01:FFFFFFFFFFFF854F:  A0 00
+F00:0589         sta (DUMP_POINTER),y
+               S01:FFFFFFFFFFFF8551:  91 00
+F00:0590         jsr increment_address
+               S01:FFFFFFFFFFFF8553:  20 3D 84
+F00:0591         jsr new_address
+               S01:FFFFFFFFFFFF8556:  20 C7 83
+F00:0592         jsr print
+               S01:FFFFFFFFFFFF8559:  20 18 84
+F00:0593         jmp exit_key_irq
+               S01:FFFFFFFFFFFF855C:  4C EC 85
+F00:0594       
+F00:0595       check_f:
+F00:0596         cmp #'F'
+               S01:FFFFFFFFFFFF855F:  C9 46
+F00:0597         ; show 8-byte wide block of memory
+F00:0598         bne check_1
+               S01:FFFFFFFFFFFF8561:  D0 10
+F00:0599         ;ldy #$00
+F00:0600         lda BYTE
+               S01:FFFFFFFFFFFF8563:  AD 05 02
+F00:0601         sta DUMP_POINTER
+               S01:FFFFFFFFFFFF8566:  85 00
+F00:0602         lda BYTE + 1
+               S01:FFFFFFFFFFFF8568:  AD 06 02
+F00:0603         sta DUMP_POINTER + 1
+               S01:FFFFFFFFFFFF856B:  85 01
+F00:0604         jsr block_address
+               S01:FFFFFFFFFFFF856D:  20 F6 83
+F00:0605         jmp exit_key_irq
+               S01:FFFFFFFFFFFF8570:  4C EC 85
+F00:0606       
+F00:0607       check_1:
+F00:0608         cmp #'1'
+               S01:FFFFFFFFFFFF8573:  C9 31
+F00:0609         ; show/auto-update clock
+F00:0610         bne check_3
+               S01:FFFFFFFFFFFF8575:  D0 13
+F00:0611         jsr lcd_clear
+               S01:FFFFFFFFFFFF8577:  20 3F 80
+F00:0612         lda #<emt
+               S01:FFFFFFFFFFFF857A:  A9 2D
+F00:0613         sta MESSAGE_POINTER
+               S01:FFFFFFFFFFFF857C:  85 05
+F00:0614         lda #>emt
+               S01:FFFFFFFFFFFF857E:  A9 86
+F00:0615         sta MESSAGE_POINTER + 1
+               S01:FFFFFFFFFFFF8580:  85 06
+F00:0616         jsr print
+               S01:FFFFFFFFFFFF8582:  20 18 84
+F00:0617         smb5 FLAGS
+               S01:FFFFFFFFFFFF8585:  D7 02
+F00:0618         
+F00:0619         ;jsr show_clock
+F00:0620         jmp exit_key_irq
+               S01:FFFFFFFFFFFF8587:  4C EC 85
+F00:0621       
+F00:0622       check_3:
+F00:0623         cmp #'3'
+               S01:FFFFFFFFFFFF858A:  C9 33
+F00:0624         bne check_6
+               S01:FFFFFFFFFFFF858C:  D0 09
+F00:0625         ;ldy #$00
+F00:0626         jsr increment_block
+               S01:FFFFFFFFFFFF858E:  20 51 84
+F00:0627         jsr block_address
+               S01:FFFFFFFFFFFF8591:  20 F6 83
+F00:0628         jmp exit_key_irq
+               S01:FFFFFFFFFFFF8594:  4C EC 85
+F00:0629       
+F00:0630       check_6:
+F00:0631         cmp #'6'
+               S01:FFFFFFFFFFFF8597:  C9 36
+F00:0632         bne check_9
+               S01:FFFFFFFFFFFF8599:  D0 09
+F00:0633         ;ldy #$00
+F00:0634         jsr decrement_block
+               S01:FFFFFFFFFFFF859B:  20 65 84
+F00:0635         jsr block_address
+               S01:FFFFFFFFFFFF859E:  20 F6 83
+F00:0636         jmp exit_key_irq
+               S01:FFFFFFFFFFFF85A1:  4C EC 85
+F00:0637       
+F00:0638       check_9:
+F00:0639         cmp #'9'
+               S01:FFFFFFFFFFFF85A4:  C9 39
+F00:0640         bne check_4
+               S01:FFFFFFFFFFFF85A6:  D0 06
+F00:0641         jsr toggle_block
+               S01:FFFFFFFFFFFF85A8:  20 CF 84
+F00:0642         jmp exit_key_irq
+               S01:FFFFFFFFFFFF85AB:  4C EC 85
+F00:0643       
+F00:0644       check_4:
+F00:0645         cmp #'4'
+               S01:FFFFFFFFFFFF85AE:  C9 34
+F00:0646         bne check_5
+               S01:FFFFFFFFFFFF85B0:  D0 12
+F00:0647         lda BYTE
+               S01:FFFFFFFFFFFF85B2:  AD 05 02
+F00:0648         sta HEXB
+               S01:FFFFFFFFFFFF85B5:  8D 0B 02
+F00:0649         lda BYTE + 1
+               S01:FFFFFFFFFFFF85B8:  AD 06 02
+F00:0650         sta HEXB + 1
+               S01:FFFFFFFFFFFF85BB:  8D 0C 02
+F00:0651         jsr byte_to_hex
+               S01:FFFFFFFFFFFF85BE:  20 3D 82
+F00:0652         jmp exit_key_irq
+               S01:FFFFFFFFFFFF85C1:  4C EC 85
+F00:0653       
+F00:0654       check_5:
+F00:0655         cmp #'5'
+               S01:FFFFFFFFFFFF85C4:  C9 35
+F00:0656         bne exit_key_irq
+               S01:FFFFFFFFFFFF85C6:  D0 24
+F00:0657         jsr $3000
+               S01:FFFFFFFFFFFF85C8:  20 00 30
+F00:0658         jmp exit_key_irq
+               S01:FFFFFFFFFFFF85CB:  4C EC 85
+F00:0659       
+F00:0660       
+F00:0661       handle_new_char:
+F00:0662         lda ASCII + 2
+               S01:FFFFFFFFFFFF85CE:  AD 03 02
+F00:0663         sta ASCII + 3
+               S01:FFFFFFFFFFFF85D1:  8D 04 02
+F00:0664         lda ASCII + 1
+               S01:FFFFFFFFFFFF85D4:  AD 02 02
+F00:0665         sta ASCII + 2
+               S01:FFFFFFFFFFFF85D7:  8D 03 02
+F00:0666         lda ASCII
+               S01:FFFFFFFFFFFF85DA:  AD 01 02
+F00:0667         sta ASCII + 1
+               S01:FFFFFFFFFFFF85DD:  8D 02 02
+F00:0668         lda INKEY       ; get the new ASCII keypress value and... 
+               S01:FFFFFFFFFFFF85E0:  AD 00 02
+F00:0669         sta ASCII
+               S01:FFFFFFFFFFFF85E3:  8D 01 02
+F00:0670         jsr print_char  ; and print it on LCD
+               S01:FFFFFFFFFFFF85E6:  20 BF 80
+F00:0671         
+F00:0672         jsr ascii_byte  ; convert the rolling 4-byte ASCII character data into two binary bytes
+               S01:FFFFFFFFFFFF85E9:  20 79 84
+F00:0673       
+F00:0674       exit_key_irq:
+F00:0675       
+F00:0676       
+F00:0677         jsr scan  ; re-enable keypad
+               S01:FFFFFFFFFFFF85EC:  20 2A 81
+F00:0678       
+F00:0679         rts
+               S01:FFFFFFFFFFFF85EF:  60
+F00:0680       
+F00:0681       
+F00:0682       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0683       
+F00:0684       nmi:
+F00:0685         rti
+               S01:FFFFFFFFFFFF85F0:  40
+F00:0686       
+F00:0687       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0688       ;;
+F00:0689       ;;    interrupt is triggered by HIGH edge on VIA CA1 pin
+F00:0690       ;;     PORTA low nibble (keypad columns) inputs are diode ORed to CA1
+F00:0691       ;;
+F00:0692       
+F00:0693       irq:
+F00:0694       ; put registers on the stack while handling the IRQ
+F00:0695         pha
+               S01:FFFFFFFFFFFF85F1:  48
+F00:0696         phx
+               S01:FFFFFFFFFFFF85F2:  DA
+F00:0697         phy
+               S01:FFFFFFFFFFFF85F3:  5A
+F00:0698       
+F00:0699       ;  find responsible hardware
+F00:0700       
+F00:0701       ;  Is it VIA_1?
+F00:0702       
+F00:0703         lda IFR_1   ; if IFR_1 has Bit7 set (ie sign=NEGATIVE) then it IS the source of the interrupt
+               S01:FFFFFFFFFFFF85F4:  AD 0D 60
+F00:0704         bpl next_device ; if it's not set (ie sign=POSITIVE) then branch to test the next possible device
+               S01:FFFFFFFFFFFF85F7:  10 30
+F00:0705       
+F00:0706       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0707       ;;
+F00:0708       ;; IFR Flags
+F00:0709       ;; B7  B6  B5  B4  B3  B2  B1  B0
+F00:0710       ;; IRQ TI1 TI2 CB1 CB2 SR CA1 CA2
+F00:0711       ;;
+F00:0712       ;; Interrupt source is found by sequentially shifting IFR bit left to put bit-of-interest into the CARRY place
+F00:0713       ;; and then branching based on whether CARRY is SET or not
+F00:0714       ;;
+F00:0715       ;; Only add tests for IRQ sources in use, and adjust the ASLs in each test as necessary
+F00:0716       ;;
+F00:0717       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0718       
+F00:0719       test_timer1:
+F00:0720         asl           ; shift IFR left twice puts the TI1 bit into CARRY....
+               S01:FFFFFFFFFFFF85F9:  0A
+F00:0721         asl
+               S01:FFFFFFFFFFFF85FA:  0A
+F00:0722         bcc test_cb1  ; carry clear = next test
+               S01:FFFFFFFFFFFF85FB:  90 09
+F00:0723         bit T1CL_1      ; carry not clear = handle the TIMER interrupt
+               S01:FFFFFFFFFFFF85FD:  2C 04 60
+F00:0724         jsr rtc
+               S01:FFFFFFFFFFFF8600:  20 C2 82
+F00:0725         jmp exit_irq
+               S01:FFFFFFFFFFFF8603:  4C 29 86
+F00:0726       
+F00:0727       test_cb1:
+F00:0728         asl
+               S01:FFFFFFFFFFFF8606:  0A
+F00:0729         asl
+               S01:FFFFFFFFFFFF8607:  0A
+F00:0730         bcc test_cb2
+               S01:FFFFFFFFFFFF8608:  90 09
+F00:0731         bit PORTB_1
+               S01:FFFFFFFFFFFF860A:  2C 00 60
+F00:0732         jsr cb1_handler
+               S01:FFFFFFFFFFFF860D:  20 DA 84
+F00:0733         jmp exit_irq
+               S01:FFFFFFFFFFFF8610:  4C 29 86
+F00:0734       
+F00:0735       test_cb2:
+F00:0736         asl
+               S01:FFFFFFFFFFFF8613:  0A
+F00:0737         bcc test_ca1
+               S01:FFFFFFFFFFFF8614:  90 09
+F00:0738         bit PORTB_1
+               S01:FFFFFFFFFFFF8616:  2C 00 60
+F00:0739         jsr cb2_handler
+               S01:FFFFFFFFFFFF8619:  20 E9 84
+F00:0740         jmp exit_irq
+               S01:FFFFFFFFFFFF861C:  4C 29 86
+F00:0741       
+F00:0742       test_ca1:
+F00:0743         asl           ; shift CA1 bit into the CARRY bit & test
+               S01:FFFFFFFFFFFF861F:  0A
+F00:0744         asl
+               S01:FFFFFFFFFFFF8620:  0A
+F00:0745         bcc exit_irq        ; carry clear = leave
+               S01:FFFFFFFFFFFF8621:  90 06
+F00:0746         jsr keypad_handler  ; carry not clear = handle the CA1 interrupt (keypad)
+               S01:FFFFFFFFFFFF8623:  20 ED 84
+F00:0747         jmp exit_irq
+               S01:FFFFFFFFFFFF8626:  4C 29 86
+F00:0748       
+F00:0749       
+F00:0750       next_device:
+F00:0751       
+F00:0752       exit_irq:
+F00:0753         ply
+               S01:FFFFFFFFFFFF8629:  7A
+F00:0754         plx
+               S01:FFFFFFFFFFFF862A:  FA
+F00:0755         pla
+               S01:FFFFFFFFFFFF862B:  68
+F00:0756       
+F00:0757       
+F00:0758         rti
+               S01:FFFFFFFFFFFF862C:  40
+F00:0759       
+F00:0760       emt: .asciiz "hhh mm ss  MET"
+               S01:FFFFFFFFFFFF862D:  68 68 68 20 6D 6D 20 73 73 20 20 4D 45 54
+F00:0761       splash: .asciiz "Mon>"
+               S01:FFFFFFFFFFFF863C:  4D 6F 6E 3E
+F00:0762       error_message: .asciiz "Error"
+               S01:FFFFFFFFFFFF8641:  45 72 72 6F 72
+F00:0763       
+F00:0764       ; Reset/IRQ vectors
+F00:0765       
+F00:0766       ;.segment "VECTORS"
+F00:0767         
+F00:0768         .org $FFFA
+F00:0769       
+F00:0770         .word nmi
+               S02:FFFFFFFFFFFFFFFA:  F0 85
+F00:0771         .word reset
+               S02:FFFFFFFFFFFFFFFC:  19 83
+F00:0772         .word irq
+               S02:FFFFFFFFFFFFFFFE:  F1 85
+F00:0773       
+
+
+Sections:
+S01  seg8000
+S02  segfffa
+
+
+Sources:
+F00  monitor_vasm.s
+F01  ./includes/6522.inc
+F02  ./includes/lcd.inc
+F03  ./includes/getkey.inc
+F04  ./includes/functions.inc
+F05  ./includes/rtc.inc
+
+
+Symbols:
+test_ca1 EXPR(-31201=0x861f) ABS 
+test_cb2 EXPR(-31213=0x8613) ABS 
+exit_irq EXPR(-31191=0x8629) ABS 
+test_cb1 EXPR(-31226=0x8606) ABS 
+test_timer1 EXPR(-31239=0x85f9) UNUSED ABS 
+next_device EXPR(-31191=0x8629) ABS 
+irq EXPR(-31247=0x85f1) ABS 
+nmi EXPR(-31248=0x85f0) ABS 
+check_5 EXPR(-31292=0x85c4) ABS 
+check_4 EXPR(-31314=0x85ae) ABS 
+check_9 EXPR(-31324=0x85a4) ABS 
+check_6 EXPR(-31337=0x8597) ABS 
+emt EXPR(-31187=0x862d) ABS 
+check_3 EXPR(-31350=0x858a) ABS 
+check_1 EXPR(-31373=0x8573) ABS 
+check_f EXPR(-31393=0x855f) ABS 
+check_e EXPR(-31416=0x8548) ABS 
+check_d EXPR(-31439=0x8531) ABS 
+check_c EXPR(-31462=0x851a) ABS 
+exit_key_irq EXPR(-31252=0x85ec) ABS 
+check_b EXPR(-31475=0x850d) ABS 
+check_a EXPR(-31488=0x8500) UNUSED ABS 
+handle_new_char EXPR(-31282=0x85ce) ABS 
+check_keypress EXPR(-31491=0x84fd) ABS 
+keypad_handler EXPR(-31507=0x84ed) ABS 
+cb2_handler EXPR(-31511=0x84e9) ABS 
+cb1_handler EXPR(-31526=0x84da) ABS 
+exit_toggle_block EXPR(-31527=0x84d9) ABS 
+reset_bit0 EXPR(-31529=0x84d7) ABS 
+toggle_block EXPR(-31537=0x84cf) ABS 
+exit_led EXPR(-31538=0x84ce) ABS 
+toggle_led EXPR(-31559=0x84b9) UNUSED ABS 
+exit_toggle_clock EXPR(-31560=0x84b8) ABS 
+reset_bit5 EXPR(-31562=0x84b6) ABS 
+toggle_clock EXPR(-31570=0x84ae) ABS 
+ascii_byte EXPR(-31623=0x8479) ABS 
+decrement_block EXPR(-31643=0x8465) ABS 
+increment_block EXPR(-31663=0x8451) ABS 
+inc_ok EXPR(-31664=0x8450) UNUSED ABS 
+increment_address EXPR(-31683=0x843d) ABS 
+dec_ok EXPR(-31684=0x843c) UNUSED ABS 
+decrement_address EXPR(-31703=0x8429) ABS 
+end_print EXPR(-31704=0x8428) ABS 
+line1 EXPR(-31715=0x841d) ABS 
+block_message_end EXPR(-31721=0x8417) UNUSED ABS 
+print_block EXPR(-31731=0x840d) ABS 
+print_block_address EXPR(-31749=0x83fb) UNUSED ABS 
+message_end EXPR(-31758=0x83f2) UNUSED ABS 
+print_data EXPR(-31775=0x83e1) UNUSED ABS 
+print_address EXPR(-31795=0x83cd) UNUSED ABS 
+exit_clock EXPR(-31802=0x83c6) ABS 
+block_address EXPR(-31754=0x83f6) ABS 
+exit_update_block EXPR(-31867=0x8385) ABS 
+clock_time EXPR(-31866=0x8386) ABS 
+update_block_address EXPR(-31883=0x8375) ABS 
+check_flags EXPR(-31890=0x836e) ABS 
+loop EXPR(-31897=0x8367) ABS 
+new_address EXPR(-31801=0x83c7) ABS 
+splash EXPR(-31172=0x863c) ABS 
+user_ram EXPR(-31913=0x8357) UNUSED ABS 
+init_variables EXPR(-31962=0x8326) UNUSED ABS 
+reset EXPR(-31975=0x8319) ABS 
+HUNDREDS EXPR(520=0x208) UNUSED EQU 
+BYTE EXPR(517=0x205) EQU 
+ASCII EXPR(513=0x201) EQU 
+INKEY EXPR(512=0x200) EQU 
+LED_LAST EXPR(7=0x7) EQU 
+CLOCK_LAST EXPR(4=0x4) EQU 
+TOGGLE_TIME EXPR(3=0x3) EQU 
+FLAGS EXPR(2=0x2) EQU 
+DUMP_POINTER EXPR(0=0x0) EQU 
+HUNDRED_HRS EXPR(21=0x15) EQU 
+TEN_HRS EXPR(22=0x16) EQU 
+HRS EXPR(23=0x17) EQU 
+TEN_MINUTES EXPR(24=0x18) EQU 
+MINUTES EXPR(25=0x19) EQU 
+TEN_SECONDS EXPR(26=0x1a) EQU 
+SECONDS EXPR(27=0x1b) EQU 
+end_MET EXPR(-31976=0x8318) ABS 
+CENTISEC EXPR(20=0x14) EQU 
+inc_MET EXPR(-32048=0x82d0) ABS 
+TICKS EXPR(16=0x10) EQU 
+rtc EXPR(-32062=0x82c2) ABS 
+end_ascii_bin EXPR(-32063=0x82c1) ABS 
+ascii_bin_letter EXPR(-32072=0x82b8) UNUSED ABS 
+ascii_bin_num EXPR(-32065=0x82bf) ABS 
+ascii_bin EXPR(-32077=0x82b3) ABS 
+TEMP2 EXPR(526=0x20e) EQU 
+print EXPR(-31720=0x8418) ABS 
+MESSAGE_POINTER EXPR(5=0x5) EQU 
+error_message EXPR(-31167=0x8641) ABS 
+exit_byte_to_hex EXPR(-32094=0x82a2) ABS 
+HEX EXPR(521=0x209) EQU 
+print_error EXPR(-32106=0x8296) ABS 
+TENS EXPR(519=0x207) EQU 
+mult10 EXPR(-32090=0x82a6) ABS 
+error EXPR(-32107=0x8295) ABS 
+HEXB EXPR(523=0x20b) EQU 
+byte_to_hex EXPR(-32195=0x823d) ABS 
+binascii EXPR(-32395=0x8175) ABS 
+single_figure EXPR(-32405=0x816b) ABS 
+bintoascii EXPR(-32425=0x8157) ABS 
+hexascii EXPR(-32441=0x8147) ABS 
+bintohex EXPR(-32464=0x8130) ABS 
+scan EXPR(-32470=0x812a) ABS 
+keypad_array EXPR(-32487=0x8119) ABS 
+FindCol EXPR(-32503=0x8109) ABS 
+TEMP EXPR(525=0x20d) EQU 
+Row_Found EXPR(-32508=0x8104) ABS 
+ScanRow EXPR(-32531=0x80ed) ABS 
+readKeypad EXPR(-32535=0x80e9) UNUSED ABS 
+get_key EXPR(-32535=0x80e9) ABS 
+print_char EXPR(-32577=0x80bf) ABS 
+lcd_init EXPR(-32631=0x8089) ABS 
+lcdbusy EXPR(-32675=0x805d) ABS 
+lcd_wait EXPR(-32681=0x8057) ABS 
+lcd_line_2 EXPR(-32687=0x8051) ABS 
+lcd_cursor_on EXPR(-32693=0x804b) ABS 
+lcd_home EXPR(-32711=0x8039) ABS 
+lcd_clear EXPR(-32705=0x803f) ABS 
+lcd_cursor_off EXPR(-32699=0x8045) ABS 
+lcd_entry_mode EXPR(-32717=0x8033) ABS 
+lcd_instruction EXPR(-32615=0x8099) ABS 
+lcd_start EXPR(-32732=0x8024) ABS 
+RS EXPR(16=0x10) EQU 
+RW EXPR(32=0x20) EQU 
+E EXPR(64=0x40) EQU 
+via_1_init EXPR(-32768=0x8000) ABS 
+IER_1 EXPR(24590=0x600e) EQU 
+IFR_1 EXPR(24589=0x600d) EQU 
+PCR_1 EXPR(24588=0x600c) EQU 
+ACR_1 EXPR(24587=0x600b) EQU 
+T1CH_1 EXPR(24581=0x6005) EQU 
+T1CL_1 EXPR(24580=0x6004) EQU 
+DDRA_1 EXPR(24579=0x6003) EQU 
+DDRB_1 EXPR(24578=0x6002) EQU 
+PORTA_1 EXPR(24577=0x6001) EQU 
+PORTB_1 EXPR(24576=0x6000) EQU 
+__RPTCNT EXPR(-1=0xffff) INTERNAL 
+__VASM EXPR(0=0x0) INTERNAL 
+
+There have been no errors.

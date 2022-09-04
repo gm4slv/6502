@@ -1,38 +1,86 @@
 
 
-.include "../includes/6522.inc"
-.include "../includes/lcd.inc"
-.include "../includes/getkey.inc"
-.include "../includes/functions.inc"
-.include "../includes/rtc.inc"
+  .include "./includes/6522.inc"
+  .include "./includes/lcd.inc"
+  .include "./includes/getkey.inc"
+  .include "./includes/functions.inc"
+  .include "./includes/rtc.inc"
 
 
 ;.SEGMENT "ZEROPAGE"
-.zeropage
+;.zeropage
 
-DUMP_POINTER:     .res 2
-MESSAGE_POINTER:  .res 2
-FLAGS:            .res 1
-TOGGLE_TIME:      .res 1
-CLOCK_LAST:       .res 1
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;      MEMORY ALLOCATIONS
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;DUMP_POINTER     = $00 ; 2
+;FLAGS            = $02 ; 1
+;TOGGLE_TIME      = $03 ; 1
+;CLOCK_LAST       = $04 ; 1
+;MESSAGE_POINTER  = $05 ; 2
+;LED_LAST         = $07 ; 1
+
+;TICKS            = $10 ; 4
+;CENTISEC         = $14 ; 1
+;HUNDRED_HRS      = $15 ; 1
+;TEN_HRS          = $16 ; 1
+;HRS              = $17 ; 1
+;TEN_MINUTES      = $18 ; 1
+;MINUTES          = $19 ; 1
+;TEN_SECONDS      = $1A ; 1
+;SECONDS          = $1B ; 1
+
+;INKEY            = $0200 ; 1
+;ASCII            = $0201 ; 4
+;BYTE             = $0205 ; 2
+;TENS             = $0207 ; 1
+;HUNDREDS         = $0208 ; 1
+;HEX              = $0209 ; 2
+;HEXB             = $020B ; 2
+;TEMP             = $020D ; 1
+;TEMP2            = $020E ; 1
 
 
-;.SEGMENT "BSS"
-.bss
+;; ZERO PAGE
 
-INKEY:            .res 1
-ASCII:            .res 4
-BYTE:             .res 2
-TENS:             .res 1
-HUNDREDS:         .res 1
-HEX:              .res 2
-HEXB:             .res 2
-TEMP:             .res 1
-TEMP2:            .res 1
+DUMP_POINTER    = $00 ; 2
+FLAGS           = $02 ; 1
+TOGGLE_TIME     = $03 ; 1
+CLOCK_LAST      = $04 ; 1
+MESSAGE_POINTER = $05 ; 2
+LED_LAST        = $07 ; 1
+
+TICKS       = $10 ; 4
+CENTISEC    = $14 ; 1
+HUNDRED_HRS = $15 ; 1
+TEN_HRS     = $16 ; 1
+HRS         = $17 ; 1
+TEN_MINUTES = $18 ; 1
+MINUTES     = $19 ; 1
+TEN_SECONDS = $1A ; 1
+SECONDS     = $1B ; 1
 
 
-.code
 
+;; LOW RAM $200 ->
+;;
+INKEY     = $0200 ; 1
+ASCII     = $0201 ; 4
+BYTE      = $0205 ; 2
+TENS      = $0207 ; 1
+HUNDREDS  = $0208 ; 1
+HEX       = $0209 ; 2
+HEXB      = $020B ; 2
+TEMP      = $020D ; 1
+TEMP2     = $020E ; 1
+
+
+;.code
+
+  .org $8000
 
 reset:
   ldx #$ff
@@ -55,6 +103,7 @@ init_variables:
   stz MESSAGE_POINTER + 1
   stz TOGGLE_TIME
   stz CLOCK_LAST
+  stz LED_LAST
   stz CENTISEC
   stz FLAGS
   stz SECONDS
@@ -67,7 +116,6 @@ init_variables:
   stz TEMP
   stz TEMP2
   stz TENS  
-
 
   
 
@@ -91,7 +139,9 @@ user_ram:
 
 ; main loop
 loop:
+  wai
   jsr check_flags
+  ;jsr toggle_led
   jmp loop
 
 
@@ -220,7 +270,7 @@ print_block:
 
   lda (DUMP_POINTER),y
   jsr bintohex
-  lda (DUMP_POINTER),y
+  ;lda (DUMP_POINTER),y
   iny
   cpy #$08
   bne print_block
@@ -285,9 +335,10 @@ increment_address:
   adc #$01
   sta DUMP_POINTER
   sta BYTE
-  bcc inc_ok
-  inc DUMP_POINTER + 1
+  ;bcc inc_ok
   lda DUMP_POINTER + 1
+  adc #$00
+  sta DUMP_POINTER + 1
   sta BYTE + 1
 inc_ok:
   rts
@@ -376,37 +427,51 @@ ascii_byte:
 ;;
 ;;    toggle the display/update of Clock on each appropriate keypress
 ;;
-show_clock:
+toggle_clock:
   
   bbs5 FLAGS, reset_bit5
   smb5 FLAGS
-  jmp exit_show_clock
+  jmp exit_toggle_clock
 
 reset_bit5:
 
   rmb5 FLAGS
 
-exit_show_clock:
+exit_toggle_clock:
   
   rts
   ;jmp debounce
+
+toggle_led:
+  sec
+  lda TICKS
+  sbc LED_LAST
+  cmp #100
+  bcc exit_led
+  lda PORTB_1
+  eor #%00100000
+  sta PORTB_1
+  lda TICKS
+  sta LED_LAST
+exit_led:
+  rts  
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;    toggle the automatic update view of the "8-byte memory block"
 ;;
-show_block:
+toggle_block:
   
   bbs0 FLAGS, reset_bit0
   smb0 FLAGS
-  jmp exit_show_block
+  jmp exit_toggle_block
 
 reset_bit0:
 
   rmb0 FLAGS
 
-exit_show_block:
+exit_toggle_block:
 
   rts
   ;jmp debounce
@@ -440,7 +505,7 @@ cb1_handler:
   stz MINUTES
   stz SECONDS
 
-  smb5 FLAGS
+  ;smb5 FLAGS
 
   rts
 
@@ -450,7 +515,7 @@ cb1_handler:
 ;;
 
 cb2_handler:
-  jsr show_clock
+  jsr toggle_clock
   rts
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -531,7 +596,7 @@ check_f:
   cmp #'F'
   ; show 8-byte wide block of memory
   bne check_1
-  ldy #$00
+  ;ldy #$00
   lda BYTE
   sta DUMP_POINTER
   lda BYTE + 1
@@ -557,7 +622,7 @@ check_1:
 check_3:
   cmp #'3'
   bne check_6
-  ldy #$00
+  ;ldy #$00
   jsr increment_block
   jsr block_address
   jmp exit_key_irq
@@ -565,7 +630,7 @@ check_3:
 check_6:
   cmp #'6'
   bne check_9
-  ldy #$00
+  ;ldy #$00
   jsr decrement_block
   jsr block_address
   jmp exit_key_irq
@@ -573,7 +638,7 @@ check_6:
 check_9:
   cmp #'9'
   bne check_4
-  jsr show_block
+  jsr toggle_block
   jmp exit_key_irq
 
 check_4:
@@ -655,7 +720,7 @@ test_timer1:
   asl           ; shift IFR left twice puts the TI1 bit into CARRY....
   asl
   bcc test_cb1  ; carry clear = next test
-  bit T1CL_1      ; clear not clear = handle the TIMER interrupt
+  bit T1CL_1      ; carry not clear = handle the TIMER interrupt
   jsr rtc
   jmp exit_irq
 
@@ -693,12 +758,14 @@ exit_irq:
   rti
 
 emt: .asciiz "hhh mm ss  MET"
-splash: .asciiz "shack> "
+splash: .asciiz "Mon>"
+error_message: .asciiz "Error"
 
 ; Reset/IRQ vectors
 
-.segment "VECTORS"
+;.segment "VECTORS"
   
+  .org $FFFA
 
   .word nmi
   .word reset

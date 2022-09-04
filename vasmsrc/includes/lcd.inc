@@ -1,6 +1,6 @@
 
 
-  .code
+  .org $8000
 
 ; LCD Command masks
 E  = %01000000
