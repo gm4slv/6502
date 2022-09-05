@@ -2,18 +2,18 @@
 
 ;.SEGMENT "ZEROPAGE"
 
-  .zeropage
+;  .zeropage
 
   
-TICKS:            .res 4
-CENTISEC:         .res 1
-HUNDRED_HRS:      .res 1
-TEN_HRS:          .res 1
-HRS:              .res 1
-TEN_MINUTES:      .res 1
-MINUTES:          .res 1
-TEN_SECONDS:      .res 1
-SECONDS:          .res 1
+;TICKS:            .res 4
+;CENTISEC:         .res 1
+;HUNDRED_HRS:      .res 1
+;TEN_HRS:          .res 1
+;HRS:              .res 1
+;TEN_MINUTES:      .res 1
+;MINUTES:          .res 1
+;TEN_SECONDS:      .res 1
+;SECONDS:          .res 1
 
   .code
 

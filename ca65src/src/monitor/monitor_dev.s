@@ -1,11 +1,6 @@
 
 
-.include "../includes/6522.inc"
-.include "../includes/lcd.inc"
-.include "../includes/getkey.inc"
-.include "../includes/functions.inc"
-.include "../includes/rtc.inc"
-
+.localchar '@'
 
 ;.SEGMENT "ZEROPAGE"
 .zeropage
@@ -14,7 +9,17 @@ DUMP_POINTER:     .res 2
 FLAGS:            .res 1
 TOGGLE_TIME:      .res 1
 CLOCK_LAST:       .res 1
-MESSAGE_POINTER = $20; .res 2
+MESSAGE_POINTER:  .res 2
+TICKS:            .res 4
+CENTISEC:         .res 1
+HUNDRED_HRS:      .res 1
+TEN_HRS:          .res 1
+HRS:              .res 1
+TEN_MINUTES:      .res 1
+MINUTES:          .res 1
+TEN_SECONDS:      .res 1
+SECONDS:          .res 1
+MEM_POINTER:      .res 2
 
 
 ;.SEGMENT "BSS"
@@ -30,6 +35,11 @@ HEXB:             .res 2
 TEMP:             .res 1
 TEMP2:            .res 1
 
+.include "../includes/ioports.inc"
+.include "../includes/lcd.inc"
+.include "../includes/getkey.inc"
+.include "../includes/functions.inc"
+.include "../includes/rtc.inc"
 
 
 .code
@@ -68,29 +78,83 @@ init_variables:
   stz TEMP
   stz TEMP2
   stz TENS  
-
+  stz MEM_POINTER
+  stz MEM_POINTER + 1
   
 
-; put a precautionary RTS at end of "user" RAM area @ $30ff
-; the "GO" function (<SHIFT>5) performs a "jsr $3000" to run
-; whatever code has been entered into RAM at $3000 and
-; we put RTS at $30ff to ensure the code returns when <SHIFT>5 is pressed
-; even if nothing (or garbage) has been entered
 
-user_ram:
-  lda #$60
-  sta $30ff
+;; test then clear RAM between 
+;; $0200 - $3FFF - avoids the ZP and STACK areas
+
+ram_clear:
+  lda #$02            ; start at $0200
+  sta MEM_POINTER + 1
+  ldy #$00
+loop_ram:
+  lda #$AA
+  sta (MEM_POINTER),y
+  lda #$FF
+  lda (MEM_POINTER),y
+  cmp #$AA
+  bne mem_fail_1
+  lda #$55
+  sta (MEM_POINTER),y
+  lda #$FF
+  lda (MEM_POINTER),y
+  cmp #$55
+  bne mem_fail_2
+  lda #$00
+  sta (MEM_POINTER),y
+  iny
+  beq next_page
+  jmp loop_ram
+next_page:
+  lda MEM_POINTER + 1
+  inc
+  cmp #$40
+  beq done_ram
+  sta MEM_POINTER + 1
+  jmp loop_ram
+
+
+done_ram:
+
+  lda #<mem_pass_msg
+  sta MESSAGE_POINTER
+  lda #>mem_pass_msg
+  sta MESSAGE_POINTER + 1
+  jsr print 
+  smb5 FLAGS
+  jmp loop
+
+mem_fail_1:
+  lda #<mem_fail_msg_1
+  sta MESSAGE_POINTER
+  lda #>mem_fail_msg_1
+  sta MESSAGE_POINTER + 1
+  jsr print
+  jmp loop
+
+mem_fail_2:
+  lda #<mem_fail_msg_2
+  sta MESSAGE_POINTER
+  lda #>mem_fail_msg_2
+  sta MESSAGE_POINTER + 1
+  jsr print
+  jmp loop
+
   
   
 ; go straight to MONITOR at startup
-  lda #<splash
-  sta MESSAGE_POINTER
-  lda #>splash
-  sta MESSAGE_POINTER + 1
-  jsr new_address
+;  lda #<splash
+;  sta MESSAGE_POINTER
+;  lda #>splash
+;  sta MESSAGE_POINTER + 1
+;  jsr new_address
 
 ; main loop
 loop:
+  wai
   jsr check_flags
   jmp loop
 
@@ -149,6 +213,8 @@ clock_time:
   jsr bintoascii
   lda SECONDS
   jsr bintoascii
+  lda #' '
+  jsr print_char
   lda TICKS
   sta CLOCK_LAST
 exit_clock:
@@ -589,7 +655,7 @@ check_4:
 check_5:
   cmp #'5'
   bne exit_key_irq
-  jsr $3000
+  jsr $3F00
   jmp exit_key_irq
 
 
@@ -693,7 +759,11 @@ exit_irq:
   rti
 
 emt: .asciiz "hhh mm ss  MET"
-splash: .asciiz "mon> "
+splash: .asciiz "cmon> "
+error_message: .asciiz "Not Decimal"
+mem_pass_msg: .asciiz "RAM Test Pass"
+mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
+mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
 
 ; Reset/IRQ vectors
 

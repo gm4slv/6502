@@ -46,7 +46,9 @@
 
 ;; ZERO PAGE
 
+
 DUMP_POINTER    = $00 ; 2
+
 FLAGS           = $02 ; 1
 TOGGLE_TIME     = $03 ; 1
 CLOCK_LAST      = $04 ; 1
@@ -78,9 +80,13 @@ TEMP      = $020D ; 1
 TEMP2     = $020E ; 1
 
 
+
+
 ;.code
 
   .org $8000
+
+
 
 reset:
   ldx #$ff
@@ -760,6 +766,7 @@ exit_irq:
 emt: .asciiz "hhh mm ss  MET"
 splash: .asciiz "Mon>"
 error_message: .asciiz "Error"
+
 
 ; Reset/IRQ vectors
 

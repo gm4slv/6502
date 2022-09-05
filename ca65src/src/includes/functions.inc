@@ -1,5 +1,10 @@
 
+;.zeropage
+;MESSAGE_POINTER = $20
+;
+;  .org $8000
   .code
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;          convert a binary number from Accumulator, in range 00000000 -> 11111111 ($00 to $FF)
@@ -96,10 +101,14 @@ byte_to_hex:
   lsr
   lsr
   lsr
+  cmp #10
+  bpl error
   jsr mult10
   sta TENS
   pla
   and #%00001111 ; UNITS
+  cmp #10
+  bpl print_error
 ;  jsr mult10
   clc
   adc TENS
@@ -107,12 +116,27 @@ byte_to_hex:
 
   lda HEXB + 1 ; hi byte
   and #%00001111
+  cmp #10
+  bpl print_error
   jsr mult10
   jsr mult10 ; hundreds
   adc HEX
-
-
+  
   jsr bintohex
+  jmp exit_byte_to_hex
+
+error:
+  pla
+print_error:
+  lda #<error_message
+  sta MESSAGE_POINTER
+  lda #>error_message
+  sta MESSAGE_POINTER + 1
+  jsr print
+  ;jsr lcd_cursor_off
+  rts
+
+exit_byte_to_hex:
   jsr lcd_line_2
   
   rts
@@ -141,7 +165,7 @@ mult10:
 ;; Convert the encoded ASCII character representing a hex digit to its actual binary value.
 ;;
 ;; e.g. Letter "A" in ASCII is $41 (0100001) but its "numerical" value as a hex digit is 
-;; 10 ($0A = 10d). 
+;; 10 ($0A = 10d = %00001010). 
 ;; 
 ;; We convert "A" in ASCII ($41) to a byte of numerical value 10 by subtracting $37
 ;; $41 - $37 = $0A (in decimal 65 - 55 = 10) and the result is a byte 00001010
@@ -170,6 +194,5 @@ ascii_bin_num:
 
 end_ascii_bin:      ; Accumulator holds the numerical version of the ASCII character supplied
   rts
-
 
 
