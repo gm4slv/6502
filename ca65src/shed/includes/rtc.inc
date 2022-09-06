@@ -1,19 +1,6 @@
 
 
-;.SEGMENT "ZEROPAGE"
 
-;  .zeropage
-
-  
-;TICKS:            .res 4
-;CENTISEC:         .res 1
-;HUNDRED_HRS:      .res 1
-;TEN_HRS:          .res 1
-;HRS:              .res 1
-;TEN_MINUTES:      .res 1
-;MINUTES:          .res 1
-;TEN_SECONDS:      .res 1
-;SECONDS:          .res 1
 
   .code
 
@@ -47,12 +34,12 @@ rtc:
 ;;
 ;;  When there's been 100 x 10ms (i.e. 1 second) we increment the seconds
 ;;
-;;  When SECONDS reaches 60 we increment MINUTES and reset SECONDS to zero...
-;;  etc... for HOURS, DAYS etc.
+;; We keep the times in single digits, SECONDS, TEN_SECONDS, MINUTES,
+;; TEN_MINUTES etc.... to make it easy to display
+;; The values are stored in RAM as binary values, and need to be converted to 
+;; ASCII characters when they are displayed on LCD
 ;;
-;;  days/months years are handled too - although probably moot
-;;
-;;  this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
+;;  The bulk of this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
 ;;
 inc_MET:
   inc CENTISEC

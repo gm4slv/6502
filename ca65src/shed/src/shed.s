@@ -1,8 +1,4 @@
 
-
-.localchar '@'
-
-;.SEGMENT "ZEROPAGE"
 .zeropage
 
 DUMP_POINTER:     .res 2
@@ -21,12 +17,10 @@ TEN_SECONDS:      .res 1
 SECONDS:          .res 1
 MEM_POINTER:      .res 2
 
-
-;.SEGMENT "BSS"
 .bss
 
 INKEY:            .res 1
-ASCII:            .res 4
+KEY_PRESS:        .res 4
 BYTE:             .res 2
 TENS:             .res 1
 HUNDREDS:         .res 1
@@ -34,6 +28,14 @@ HEX:              .res 2
 HEXB:             .res 2
 TEMP:             .res 1
 TEMP2:            .res 1
+HI_DIGIT:         .res 1
+LO_DIGIT:         .res 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;        INCLUDES 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 .include "../includes/ioports.inc"
 .include "../includes/lcd.inc"
@@ -42,20 +44,25 @@ TEMP2:            .res 1
 .include "../includes/rtc.inc"
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;         START HERE
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 .code
 
-
 reset:
+
   ldx #$ff
   txs
-
   cli      ; interrupts ON
-
   jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
   jsr lcd_init ; set-up 4-bit mode 
   jsr lcd_start ; set-up various features of lcd 
 
 init_variables:
+
   stz TICKS
   stz TICKS + 1
   stz TICKS + 2
@@ -80,30 +87,37 @@ init_variables:
   stz TENS  
   stz MEM_POINTER
   stz MEM_POINTER + 1
+  stz HI_DIGIT
+  stz LO_DIGIT
+
+memory_test:
+
+  lda #<mem_start_msg
+  sta MESSAGE_POINTER
+  lda #>mem_start_msg
+  sta MESSAGE_POINTER + 1
+  jsr print1
   
-
-
 ;; test then clear RAM between 
 ;; $0200 - $3FFF - avoids the ZP and STACK areas
 
-ram_clear:
   lda #$02            ; start at $0200
   sta MEM_POINTER + 1
   ldy #$00
 loop_ram:
-  lda #$AA
-  sta (MEM_POINTER),y
-  lda #$FF
-  lda (MEM_POINTER),y
-  cmp #$AA
+  lda #$AA              ; test with 10101010
+  sta (MEM_POINTER),y   ; write test value to RAM
+  lda #$FF              ; remove test value from A
+  lda (MEM_POINTER),y   ; read RAM contents into A
+  cmp #$AA              ; compare to expected value
   bne mem_fail_1
-  lda #$55
+  lda #$55              ; repeat test with 01010101
   sta (MEM_POINTER),y
   lda #$FF
   lda (MEM_POINTER),y
   cmp #$55
   bne mem_fail_2
-  lda #$00
+  lda #$00              ; clear RAM to all zeros
   sta (MEM_POINTER),y
   iny
   beq next_page
@@ -116,18 +130,19 @@ next_page:
   sta MEM_POINTER + 1
   jmp loop_ram
 
-
 done_ram:
 
   lda #<mem_pass_msg
   sta MESSAGE_POINTER
   lda #>mem_pass_msg
   sta MESSAGE_POINTER + 1
+  jsr lcd_clear
   jsr print 
   smb5 FLAGS
   jmp loop
 
 mem_fail_1:
+
   lda #<mem_fail_msg_1
   sta MESSAGE_POINTER
   lda #>mem_fail_msg_1
@@ -136,6 +151,7 @@ mem_fail_1:
   jmp loop
 
 mem_fail_2:
+
   lda #<mem_fail_msg_2
   sta MESSAGE_POINTER
   lda #>mem_fail_msg_2
@@ -143,45 +159,44 @@ mem_fail_2:
   jsr print
   jmp loop
 
-  
-  
-; go straight to MONITOR at startup
-;  lda #<splash
-;  sta MESSAGE_POINTER
-;  lda #>splash
-;  sta MESSAGE_POINTER + 1
-;  jsr new_address
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  
+;;                 Main Loop
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; main loop
 loop:
+
   wai
   jsr check_flags
   jmp loop
 
 
-;;;;;;;;;;;;; FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;;                  FUNCTIONS
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 check_flags:
+
   bbs0 FLAGS, update_block_address
   bbs5 FLAGS, clock_time
   ; check other flags... other actions....
   rts
 
 update_block_address:
+
   sec
   lda TICKS
   sbc TOGGLE_TIME
   cmp #$32
-  bcc exit_update_block
+  bcc @exit
   jsr block_address
   lda TICKS
   sta TOGGLE_TIME
-  
-exit_update_block:
+@exit:
   rts
-
 
 clock_time:
 
@@ -189,12 +204,9 @@ clock_time:
   lda TICKS
   sbc CLOCK_LAST
   cmp #$32
-  bcc exit_clock
-  
+  bcc @exit
   jsr lcd_cursor_off
-  
   jsr lcd_home
-  
   lda HUNDRED_HRS
   jsr bintoascii
   lda TEN_HRS
@@ -217,7 +229,7 @@ clock_time:
   jsr print_char
   lda TICKS
   sta CLOCK_LAST
-exit_clock:
+@exit:
   rts
 
 
@@ -227,93 +239,100 @@ exit_clock:
 ;;
 ;;
 new_address:
-  
   jsr lcd_clear
-  
   jsr lcd_cursor_on
-
-
 print_address:
   lda #'$'
   jsr print_char
   lda DUMP_POINTER + 1
   jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   lda DUMP_POINTER
   jsr bintohex
-
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   lda #' '
   jsr print_char
-
-print_data:
-
   ldy #$00
-
   lda (DUMP_POINTER),y
   jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   lda #' '
   jsr print_char
   lda (DUMP_POINTER),y
   jsr print_char
-
-message_end:
   jsr print   ; add second line (cursor) after re-writing the top line
   rts
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; display 8 bytes of data for a "block" of memory
+;;      display 8 bytes of data for a "block" of memory
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 block_address:
-  
+
   jsr lcd_clear
-
   ldy #$00
-
-print_block_address:
   lda #'$'
   jsr print_char
   lda DUMP_POINTER + 1
   jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   lda DUMP_POINTER
   jsr bintohex
-
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   jsr lcd_line_2
-  
-print_block:
-
+@loop:
   lda (DUMP_POINTER),y
   jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
   lda (DUMP_POINTER),y
   iny
   cpy #$08
-  bne print_block
-
-
-block_message_end:
+  bne @loop
   rts
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; re-draw line 2 cursor
+;;            print on line 1 or line 2
 ;;
-;;
-print:
-  
-  jsr lcd_line_2
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+print1:
+
+  jsr lcd_clear
+  ldy #0
+  jmp line1
+print:
+  jsr lcd_line_2
   ldy #0
 line1:
   lda (MESSAGE_POINTER),y
-  beq end_print
+  beq @exit
   jsr print_char
   iny
   jmp line1
-
-end_print:
-
+@exit:
   rts
 
 
@@ -323,7 +342,8 @@ end_print:
 ;;
 ;;      Monitor function - decrement the selected address 
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 decrement_address:
 
   sec
@@ -335,14 +355,13 @@ decrement_address:
   sbc #$00
   sta DUMP_POINTER + 1
   sta BYTE + 1
-dec_ok:
   rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;      Monitor function - increment the selected address 
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 increment_address:
 
@@ -351,20 +370,20 @@ increment_address:
   adc #$01
   sta DUMP_POINTER
   sta BYTE
-  bcc inc_ok
-  inc DUMP_POINTER + 1
   lda DUMP_POINTER + 1
+  adc #$00
+  sta DUMP_POINTER + 1
   sta BYTE + 1
-inc_ok:
   rts
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;      Monitor function - increment the selected block of  addresses by 8 
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 increment_block:
+
   clc
   lda DUMP_POINTER
   adc #$08
@@ -376,11 +395,11 @@ increment_block:
   sta BYTE + 1
   rts
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;      Monitor function - decrement the selected block of  addresses by 8 
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 decrement_block:
 
@@ -397,107 +416,83 @@ decrement_block:
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;          use last 4 entered ASCII characters from the keypad and convert 
-;;          them to TWO 8-bit binary bytes in RAM
+;; use last 4 key presses (as hex bytes) to fill two BYTES
 ;;
-;;
-ascii_byte:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  lda ASCII + 1
+keys_byte:
 
-  jsr ascii_bin
-  clc
+  lda KEY_PRESS + 1
   asl
   asl
   asl
   asl
   sta BYTE
-
-  lda ASCII
-  
-  jsr ascii_bin
+  lda KEY_PRESS
   ora BYTE
-  sta BYTE
-
-  lda ASCII + 3
-  jsr ascii_bin
-  clc
+  sta BYTE  
+  lda KEY_PRESS + 3
   asl
   asl
   asl
   asl
   sta BYTE + 1
-
-  lda ASCII + 2
-  
-  jsr ascii_bin
+  lda KEY_PRESS + 2
   ora BYTE + 1
   sta BYTE + 1
   rts
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;    toggle the display/update of Clock on each appropriate keypress
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 show_clock:
-  
+
   bbs5 FLAGS, reset_bit5
   smb5 FLAGS
   jmp exit_show_clock
-
 reset_bit5:
-
   rmb5 FLAGS
-
 exit_show_clock:
-  
   rts
-  ;jmp debounce
+  
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;    toggle the automatic update view of the "8-byte memory block"
 ;;
+
 show_block:
   
   bbs0 FLAGS, reset_bit0
   smb0 FLAGS
   jmp exit_show_block
-
 reset_bit0:
-
   rmb0 FLAGS
-
 exit_show_block:
-
   rts
-  ;jmp debounce
-
-;debounce:
-;  ldx #$ff
-;  ldy #$ff
-;delay:
-;  nop
-;  dex
-;  bne delay
-;  dey
-;  bne delay
-;  rts  
+  
   
 
-;;;;;;;;;;;;;;;;;; INTERRUPT HANDLERS ;;;;;;;;;;;;;;;;;;;;
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+;;
+;;                     INTERRUPT HANDLERS 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;      CB1 : reset & restart timer
+;;                 CB1 : reset & restart timer
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 cb1_handler:
+
   stz HUNDRED_HRS
   stz TEN_HRS
   stz TEN_MINUTES
@@ -505,17 +500,16 @@ cb1_handler:
   stz HRS
   stz MINUTES
   stz SECONDS
-
-  smb5 FLAGS
-
   rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;     CB2 : lap-time pause timer
+;;                CB2 : lap-time pause timer
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 cb2_handler:
+
   jsr show_clock
   rts
   
@@ -523,23 +517,26 @@ cb2_handler:
 ;;
 ;;                    MONITOR / KEYPAD 
 ;;
-;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 keypad_handler:
 
   jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
-  sta INKEY       ; put the ASCII value of input into RAM ( $00 ) 
-  
+  sta INKEY       ; put the byte value of input into RAM ( $00 )   
   lda PORTB_1       ; check for SHIFT/INSTRUCTION button
   and #%10000000
   beq check_keypress ; done this way to get around the limit in size of branch jumps....
   jmp handle_new_char
   
 check_keypress:
-  lda INKEY       
+  
+  lda INKEY
+  jsr bintohex  ; convert BYTE value of keypress to its ASCII HEX equivalent "0" -> "A"     
 
 ; choose action of "SHIFTed" key-press
+
 check_a:
+  
   cmp #'A'
   ; move up one memory address and display contents
   bne check_b     
@@ -548,6 +545,7 @@ check_a:
   jmp exit_key_irq
 
 check_b:
+
   cmp #'B'
   ; move down one memory address and display contents
   bne check_c
@@ -556,6 +554,7 @@ check_b:
   jmp exit_key_irq
 
 check_c:
+
   cmp #'C'
   ; return to MONITOR
   bne check_d
@@ -564,12 +563,12 @@ check_c:
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
-  sta MESSAGE_POINTER + 1
-  
+  sta MESSAGE_POINTER + 1  
   jsr new_address
   jmp exit_key_irq
 
 check_d:
+
   cmp #'D'
   ; move monitor to entered 4-digit memory address
   bne check_e
@@ -582,6 +581,7 @@ check_d:
   jmp exit_key_irq
 
 check_e:
+
   cmp #'E'
   ; insert (POKE) byte of data in to current memory address, then increment to next address
   bne check_f
@@ -594,6 +594,7 @@ check_e:
   jmp exit_key_irq
 
 check_f:
+
   cmp #'F'
   ; show 8-byte wide block of memory
   bne check_1
@@ -606,6 +607,7 @@ check_f:
   jmp exit_key_irq
 
 check_1:
+
   cmp #'1'
   ; show/auto-update clock
   bne check_3
@@ -616,11 +618,10 @@ check_1:
   sta MESSAGE_POINTER + 1
   jsr print
   smb5 FLAGS
-  
-  ;jsr show_clock
   jmp exit_key_irq
 
 check_3:
+
   cmp #'3'
   bne check_6
   ldy #$00
@@ -629,6 +630,7 @@ check_3:
   jmp exit_key_irq
 
 check_6:
+
   cmp #'6'
   bne check_9
   ldy #$00
@@ -637,12 +639,14 @@ check_6:
   jmp exit_key_irq
 
 check_9:
+
   cmp #'9'
   bne check_4
   jsr show_block
   jmp exit_key_irq
 
 check_4:
+
   cmp #'4'
   bne check_5
   lda BYTE
@@ -653,6 +657,7 @@ check_4:
   jmp exit_key_irq
 
 check_5:
+
   cmp #'5'
   bne exit_key_irq
   jsr $3F00
@@ -660,38 +665,40 @@ check_5:
 
 
 handle_new_char:
-  lda ASCII + 2
-  sta ASCII + 3
-  lda ASCII + 1
-  sta ASCII + 2
-  lda ASCII
-  sta ASCII + 1
-  lda INKEY       ; get the new ASCII keypress value and... 
-  sta ASCII
-  jsr print_char  ; and print it on LCD
-  
-  jsr ascii_byte  ; convert the rolling 4-byte ASCII character data into two binary bytes
 
+  lda KEY_PRESS + 2
+  sta KEY_PRESS + 3
+  lda KEY_PRESS + 1
+  sta KEY_PRESS + 2
+  lda KEY_PRESS
+  sta KEY_PRESS + 1
+  lda INKEY       ; get the new keypress value and... 
+  sta KEY_PRESS
+  jsr bintohex 
+  jsr print_char  ; and print it on LCD
+  jsr keys_byte
+ 
 exit_key_irq:
 
-
   jsr scan  ; re-enable keypad
-
   rts
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 nmi:
+
   rti
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;    interrupt is triggered by HIGH edge on VIA CA1 pin
 ;;     PORTA low nibble (keypad columns) inputs are diode ORed to CA1
 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 irq:
+
 ; put registers on the stack while handling the IRQ
   pha
   phx
@@ -718,6 +725,7 @@ irq:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 test_timer1:
+
   asl           ; shift IFR left twice puts the TI1 bit into CARRY....
   asl
   bcc test_cb1  ; carry clear = next test
@@ -726,6 +734,7 @@ test_timer1:
   jmp exit_irq
 
 test_cb1:
+
   asl
   asl
   bcc test_cb2
@@ -734,6 +743,7 @@ test_cb1:
   jmp exit_irq
 
 test_cb2:
+
   asl
   bcc test_ca1
   bit PORTB_1
@@ -741,6 +751,7 @@ test_cb2:
   jmp exit_irq
 
 test_ca1:
+
   asl           ; shift CA1 bit into the CARRY bit & test
   asl
   bcc exit_irq        ; carry clear = leave
@@ -751,16 +762,16 @@ test_ca1:
 next_device:
 
 exit_irq:
+
   ply
   plx
   pla
-
-
   rti
 
-emt: .asciiz "hhh mm ss  MET"
-splash: .asciiz "cmon> "
+emt: .asciiz "Shed Time  MET"
+splash: .asciiz "shed> "
 error_message: .asciiz "Not Decimal"
+mem_start_msg: .asciiz "Begin RAM Test"
 mem_pass_msg: .asciiz "RAM Test Pass"
 mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
 mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
@@ -769,7 +780,6 @@ mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
 
 .segment "VECTORS"
   
-
   .word nmi
   .word reset
   .word irq

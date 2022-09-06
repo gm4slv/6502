@@ -3,9 +3,6 @@ Main file   : monitor_dev.s
 Current file: monitor_dev.s
 
 000000r 1               
-000000r 1               
-000000r 1               .localchar '@'
-000000r 1               
 000000r 1               ;.SEGMENT "ZEROPAGE"
 000000r 1               .zeropage
 000000r 1               
@@ -562,20 +559,7 @@ Current file: monitor_dev.s
 0002C2r 1               .include "../includes/rtc.inc"
 0002C2r 2               
 0002C2r 2               
-0002C2r 2               ;.SEGMENT "ZEROPAGE"
 0002C2r 2               
-0002C2r 2               ;  .zeropage
-0002C2r 2               
-0002C2r 2               
-0002C2r 2               ;TICKS:            .res 4
-0002C2r 2               ;CENTISEC:         .res 1
-0002C2r 2               ;HUNDRED_HRS:      .res 1
-0002C2r 2               ;TEN_HRS:          .res 1
-0002C2r 2               ;HRS:              .res 1
-0002C2r 2               ;TEN_MINUTES:      .res 1
-0002C2r 2               ;MINUTES:          .res 1
-0002C2r 2               ;TEN_SECONDS:      .res 1
-0002C2r 2               ;SECONDS:          .res 1
 0002C2r 2               
 0002C2r 2                 .code
 0002C2r 2               
