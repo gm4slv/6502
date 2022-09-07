@@ -58,7 +58,7 @@ reset:
   txs
   cli      ; interrupts ON
   jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
-  jsr lcd_init ; set-up 4-bit mode 
+  ;jsr lcd_init ; set-up 4-bit mode 
   jsr lcd_start ; set-up various features of lcd 
 
 init_variables:
@@ -89,6 +89,12 @@ init_variables:
   stz MEM_POINTER + 1
   stz HI_DIGIT
   stz LO_DIGIT
+
+  lda #<title
+  sta MESSAGE_POINTER
+  lda #>title
+  sta MESSAGE_POINTER + 1
+  jsr print1
 
 memory_test:
 
@@ -136,9 +142,14 @@ done_ram:
   sta MESSAGE_POINTER
   lda #>mem_pass_msg
   sta MESSAGE_POINTER + 1
-  jsr lcd_clear
-  jsr print4 
+  ;jsr lcd_clear
+  jsr print3 
   ;smb5 FLAGS
+  lda #<start_msg
+  sta MESSAGE_POINTER
+  lda #>start_msg
+  sta MESSAGE_POINTER + 1
+  jsr print4
   jmp loop
 
 mem_fail_1:
@@ -240,9 +251,9 @@ clock_time:
 new_address:
   jsr lcd_clear
   jsr lcd_cursor_on
-  lda #<title
+  lda #<new_address_msg
   sta MESSAGE_POINTER
-  lda #>title
+  lda #>new_address_msg
   sta MESSAGE_POINTER + 1
   jsr print1
   jsr lcd_line_2
@@ -292,6 +303,12 @@ print_address:
 block_address:
 
   jsr lcd_clear
+  jsr lcd_cursor_off
+  lda #<block_address_msg
+  sta MESSAGE_POINTER
+  lda #>block_address_msg
+  sta MESSAGE_POINTER + 1
+  jsr print1
   jsr lcd_line_2
   ldy #$00
   lda #'$'
@@ -320,18 +337,37 @@ loop1:
   iny
   cpy #$08
   bne loop1
+  lda #' '
+  jsr print_char
+  lda #'H'
+  jsr print_char
+  lda #'e'
+  jsr print_char
+  lda #'x'
+  jsr print_char
   jsr lcd_line_4
+  ldy #$00
 loop2:
-  lda (DUMP_POINTER),y
-  jsr bintohex
-  lda HI_DIGIT
-  jsr print_char
-  lda LO_DIGIT
+  lda #$20
   jsr print_char
   lda (DUMP_POINTER),y
+  ;jsr bintohex
+  ;lda HI_DIGIT
+  jsr print_char
+  ;lda LO_DIGIT
+  ;jsr print_char
+  ;lda (DUMP_POINTER),y
   iny
-  cpy #$10
+  cpy #$08
   bne loop2
+  lda #' '
+  jsr print_char
+  lda #'C'
+  jsr print_char
+  lda #'h'
+  jsr print_char
+  lda #'r'
+  jsr print_char
   rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -419,7 +455,7 @@ increment_block:
 
   clc
   lda DUMP_POINTER
-  adc #$10
+  adc #$08
   sta DUMP_POINTER
   sta BYTE
   lda DUMP_POINTER + 1
@@ -438,7 +474,7 @@ decrement_block:
 
   sec
   lda DUMP_POINTER
-  sbc #$10
+  sbc #$08
   sta DUMP_POINTER
   sta BYTE
   lda DUMP_POINTER + 1
@@ -592,6 +628,7 @@ check_c:
   ; return to MONITOR
   bne check_d
   rmb5 FLAGS
+  rmb0 FLAGS
   jsr lcd_clear
   lda #<splash
   sta MESSAGE_POINTER
@@ -682,11 +719,11 @@ check_4:
 
   cmp #'4'
   bne check_5
-  lda BYTE
-  sta HEXB
-  lda BYTE + 1
-  sta HEXB + 1
-  jsr byte_to_hex
+  ;lda BYTE
+  ;sta HEXB
+  ;lda BYTE + 1
+  ;sta HEXB + 1
+  ;jsr byte_to_hex
   jmp exit_key_irq
 
 check_5:
@@ -801,10 +838,13 @@ exit_irq:
   pla
   rti
 
+start_msg: .asciiz "<shift>+C to start"
+new_address_msg: .asciiz "View/Edit Memory"
+block_address_msg: .asciiz "8 Byte view"
 title: .asciiz "...Shed Brain v1..."
 emt: .asciiz "Shed Time  MET"
 splash: .asciiz "shed> "
-error_message: .asciiz "Not Decimal"
+;error_message: .asciiz "Not Decimal"
 mem_start_msg: .asciiz "Begin RAM Test"
 mem_pass_msg: .asciiz "RAM Test Pass"
 mem_fail_msg_1: .asciiz "RAM Test 1 Fail"

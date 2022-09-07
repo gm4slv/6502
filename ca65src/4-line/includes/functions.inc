@@ -79,78 +79,78 @@ binascii: .byte "00010203040506070809"
 ;;      HEX equivalent and display
 ;;
 
-byte_to_hex:
-
-  jsr lcd_clear
-  lda HEXB + 1
-  and #$0f
-  jsr bintohex
-  lda HI_DIGIT
-  jsr print_char
-  lda LO_DIGIT
-  jsr print_char
-  lda HEXB
-  jsr bintohex
-  lda HI_DIGIT
-  jsr print_char
-  lda LO_DIGIT
-  jsr print_char
-  lda #'d'
-  jsr print_char
-  lda #'='
-  jsr print_char
-  lda #'$'
-  jsr print_char
-
-  lda HEXB ; lo byte
-  pha
-  lsr
-  lsr
-  lsr
-  lsr
-  cmp #10
-  bpl error
-  jsr mult10
-  sta TENS
-  pla
-  and #%00001111 ; UNITS
-  cmp #10
-  bpl print_error
+;byte_to_hex:
+;
+;  jsr lcd_clear
+;  lda HEXB + 1
+;  and #$0f
+;  jsr bintohex
+;  lda HI_DIGIT
+;  jsr print_char
+;  lda LO_DIGIT
+;  jsr print_char
+;  lda HEXB
+;  jsr bintohex
+;  lda HI_DIGIT
+; jsr print_char
+; lda LO_DIGIT
+; jsr print_char
+;  lda #'d'
+;  jsr print_char
+;  lda #'='
+;  jsr print_char
+;  lda #'$'
+;  jsr print_char
+;
+;  lda HEXB ; lo byte
+;  pha
+;  lsr
+;  lsr
+;  lsr
+;  lsr
+;  cmp #10
+;  bpl error
 ;  jsr mult10
-  clc
-  adc TENS
-  sta HEX
-
-  lda HEXB + 1 ; hi byte
-  and #%00001111
-  cmp #10
-  bpl print_error
-  jsr mult10
-  jsr mult10 ; hundreds
-  adc HEX
-  
-  jsr bintohex
-  lda HI_DIGIT
-  jsr print_char
-  lda LO_DIGIT
-  jsr print_char
-  jmp exit_byte_to_hex
-
-error:
-  pla
-print_error:
-  lda #<error_message
-  sta MESSAGE_POINTER
-  lda #>error_message
-  sta MESSAGE_POINTER + 1
-  jsr print3
-  ;jsr lcd_cursor_off
-  rts
-
-exit_byte_to_hex:
-  jsr lcd_line_2
-  
-  rts
+;  sta TENS
+;  pla
+;  and #%00001111 ; UNITS
+;  cmp #10
+;  bpl print_error
+;;  jsr mult10
+;  clc
+;  adc TENS
+;  sta HEX
+;
+;  lda HEXB + 1 ; hi byte
+;  and #%00001111
+;  cmp #10
+;  bpl print_error
+;  jsr mult10
+;  jsr mult10 ; hundreds
+;  adc HEX
+;  
+;  jsr bintohex
+;  lda HI_DIGIT
+;  jsr print_char
+;  lda LO_DIGIT
+;  jsr print_char
+;  jmp exit_byte_to_hex
+;
+;error:
+;  pla
+;print_error:
+;  lda #<error_message
+;  sta MESSAGE_POINTER
+;  lda #>error_message
+;  sta MESSAGE_POINTER + 1
+;  jsr print3
+;  ;jsr lcd_cursor_off
+;  rts
+;
+;exit_byte_to_hex:
+;  jsr lcd_line_2
+;  
+;  rts
 
 
 
