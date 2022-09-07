@@ -1,5 +1,5 @@
 
-include /home/gm4slv/assembler/6502/ca65src/tools.mk
+include ../../../ca65src/tools.mk
 
 BUILD_FOLDER=../build
 TEMP_FOLDER=$(BUILD_FOLDER)/$(ROM_NAME)
