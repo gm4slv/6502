@@ -1,6 +1,6 @@
 Modules list:
 -------------
-shed.o:
+4linemonitor.o:
     CODE              Offs=000000  Size=0007C3  Align=00001  Fill=0000
     BSS               Offs=000000  Size=000011  Align=00001  Fill=0000
     ZEROPAGE          Offs=000000  Size=000015  Align=00001  Fill=0000

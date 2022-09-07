@@ -1,4 +1,4 @@
-CONF_DIR=/home/gm4slv/6502/ca65src
+CONF_DIR=/home/gm4slv/assembler/6502/ca65src
 
 ROM_NAME=monitor_dev
 
