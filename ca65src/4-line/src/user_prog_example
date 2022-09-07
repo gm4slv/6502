@@ -1,0 +1,35 @@
+A simple USER machine code program to enter into user memory starting $3F00
+
+64 05     ; STZ $05 (direct page) MESSAGE_POINTER
+A9 20     ; LDA #$20
+85 06     ; STA $06 (direct page) MESSAGE_POINTER + 1
+20 96 84  ; JSR $8496 (the current location of the "print" subroutine
+60        ; RTS
+
+
+ZeroPage 
+
+$0005 00 ; MESSAGE_POINTER
+$0006 20 ; MESSAGE_POINTER + 1
+
+
+This stores the address $2000 into "MESSAGE_POINTER" then runs the "Print" subroutine to re-draw the 
+2nd line of the display now using the text found at $2000 onwards. 
+
+The actual location of "print" varies each time the code is edited and needs to be found by inspecting the "LIST" file
+from the assembler:
+
+cat shed.lst | grep print
+
+will give a clue:
+
+000496r 1  20 rr rr       jsr print   ; add second line (cursor) after re-writing the top line
+
+At the moment the print routine is at "000496" which is actually $8496, since the ROM code starts at $8000.
+
+Enter your new message text at $2000 onwards, ending in a "NULL" byte $00
+
+Run the USER subroutine with <SHIFT>5 ("GO!") to run the code at $3F00 and re-write the MESSAGE_POINTER
+
+
+

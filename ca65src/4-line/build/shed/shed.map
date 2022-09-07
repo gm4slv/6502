@@ -1,0 +1,32 @@
+Modules list:
+-------------
+shed.o:
+    CODE              Offs=000000  Size=0007C3  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000011  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000000  Size=000015  Align=00001  Fill=0000
+    VECTORS           Offs=000000  Size=000006  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+ZEROPAGE              000000  000014  000015  00001
+BSS                   000200  000210  000011  00001
+CODE                  008000  0087C2  0007C3  00001
+VECTORS               00FFFA  00FFFF  000006  00001
+
+
+Exports list by name:
+---------------------
+
+
+
+Exports list by value:
+----------------------
+
+
+
+Imports list:
+-------------
+
