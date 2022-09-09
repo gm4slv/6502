@@ -60,6 +60,29 @@ single_figure:
   jsr print_char
   rts
 
+bintoascii_2:
+
+  cmp #10
+  bmi single_figure_2
+  asl
+  tax
+  lda binascii,x
+  jsr print_2_char
+
+  inx
+
+  lda binascii,x
+  jsr print_2_char
+  rts
+
+single_figure_2:
+  asl
+  tax
+  inx
+  lda binascii,x
+  jsr print_2_char
+  rts
+
 
 binascii: .byte "00010203040506070809"
           .byte "10111213141516171819"

@@ -68,14 +68,14 @@ S_CON_1   = ACIA_1 + 3  ; Control
 
 via_1_init:
 
-  lda #%01000000
-  sta ACR_1
-  lda #$0E
-  sta T1CL_1
-  lda #$27
-  sta T1CH_1
+  ;lda #%01000000
+  ;sta ACR_1
+  ;lda #$0E
+  ;sta T1CL_1
+  ;lda #$27
+  ;sta T1CH_1
   
-  lda #%11011010  ; T1, CA1 active
+  lda #%10011010  ; , CA1 active
   sta IER_1
   
   lda #$01  ;  CA1 active high-transition 
@@ -87,4 +87,36 @@ via_1_init:
   sta DDRA_1
 
   rts
+
+via_2_init:
+
+
+  lda #%11111111 ; set all pins on port A & B to output
+  sta DDRA_2
+  sta DDRB_2
+  lda #%00000000
+  sta IER_2
+  rts
+
+via_3_init:
+  
+  lda #%01000000
+  sta ACR_3
+  lda #$0E
+  sta T1CL_3
+  lda #$27
+  sta T1CH_3
+  
+  lda #%11000000  ; T1, CA1 active
+  sta IER_3
+
+  lda #%11111111 ; set all pins on port A & B to output
+  sta DDRA_3
+  sta DDRB_3
+  lda #%00000000
+  sta IER_3
+
+  rts
+
+
 
