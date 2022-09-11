@@ -1,7 +1,7 @@
 
-ROM_NAME=4linemonitor_dev
+ROM_NAME=beep_monitor_dev
 
-ASM_SOURCES=4linemonitor_dev.s
+ASM_SOURCES=beep_monitor_dev.s
 
 FIRMWARE_CFG=../../../ca65src/firmware.cfg
 

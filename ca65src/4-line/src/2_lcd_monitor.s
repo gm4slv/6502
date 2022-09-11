@@ -166,7 +166,7 @@ done_ram:
   sta MESSAGE_POINTER + 1
   ;jsr lcd_clear
   jsr print3 
-  ;smb5 FLAGS
+  smb5 FLAGS
   lda #<start_msg
   sta MESSAGE_POINTER
   lda #>start_msg
@@ -246,9 +246,9 @@ prompt:
 loop:
 
   wai
-  jsr clock_time
-  jsr clock_via_2
-  jsr kit_led_via_3
+  ;jsr clock_time
+  ;jsr clock_via_2
+  ;jsr kit_led_via_3
   jsr check_flags
   jmp loop
 
@@ -261,10 +261,20 @@ loop:
 
 check_flags:
 
-  bbs0 FLAGS, update_block_address
-  ;bbs5 FLAGS, clock_time
+flag_zero:
+  bbr0 FLAGS, flag_two
+  jsr update_block_address
+  ;bbs5 FLAGS, clock_time_flag:
+flag_two:
+  bbr2 FLAGS, flag_five
+  jsr kit_led_via_3
+flag_five:
+  bbr5 FLAGS, flag_null
+  jsr clock_time
+flag_null:
   ; check other flags... other actions....
   rts
+
 
 
 kit_led_via_3:
@@ -659,15 +669,26 @@ keys_byte:
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;show_clock:
-;
-;  bbs5 FLAGS, reset_bit5
-;  smb5 FLAGS
-;  jmp exit_show_clock
-;reset_bit5:
-;  rmb5 FLAGS
-;exit_show_clock:
-;  rts
+show_clock:
+
+  bbs5 FLAGS, reset_bit5
+  smb5 FLAGS
+  lda #<emt
+  sta MESSAGE_POINTER
+  lda #>emt
+  sta MESSAGE_POINTER + 1
+  jsr print2_2
+  jmp exit_show_clock
+reset_bit5:
+  rmb5 FLAGS
+  lda #<pause_msg
+  sta MESSAGE_POINTER
+  lda #>pause_msg
+  sta MESSAGE_POINTER + 1
+  jsr print2_2
+
+exit_show_clock:
+  rts
   
 
 
@@ -687,6 +708,20 @@ exit_show_block:
   rts
   
   
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;     toggle the scanning LED routine on VIA_3 Port B
+;;
+
+show_kitt:
+  
+  bbs2 FLAGS, reset_bit2
+  smb2 FLAGS
+  jmp exit_show_kitt
+reset_bit2:
+  rmb2 FLAGS
+exit_show_kitt:
+  rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;
@@ -713,13 +748,13 @@ cb1_handler:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;                CB2 : lap-time pause timer
+;;                CB2 : show/hide KITT scanning LEDs
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 cb2_handler:
 
-  ;jsr show_clock
+  jsr show_clock
   rts
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -732,21 +767,25 @@ keypad_handler:
 
   jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
   sta INKEY       ; put the byte value of input into RAM ( $00 )   
-  lda PORTB_1       ; check for SHIFT/INSTRUCTION button
-  and #%10000000
+  lda PORTB_1       ; check for SHIFT/INSTRUCTION button, 0=pressed, 1=not pressed
+  and #%10000000    ; zero (eq) when button pressed -> check_keypress, otherwise it's not zero, jmp to handle_new_char
   beq check_keypress ; done this way to get around the limit in size of branch jumps....
   jmp handle_new_char
   
 check_keypress:
   
   lda INKEY
-  jsr bintohex  ; convert BYTE value of keypress to its ASCII HEX equivalent "0" -> "A"     
-
+  ;jsr bintohex  ; convert BYTE value of keypress to its ASCII HEX equivalent "0" -> "A"     
+                 ; could perhaps not do this conversion, and checks below made against 
+                 ; actual BYTE values?
+                
+                
 ; choose action of "SHIFTed" key-press
 
 check_a:
   
-  cmp #'A'
+  ;cmp #'A'
+  cmp #$0A
   ; move up one memory address and display contents
   bne check_b     
   jsr increment_address
@@ -755,7 +794,8 @@ check_a:
 
 check_b:
 
-  cmp #'B'
+  ;cmp #'B'
+  cmp #$0B
   ; move down one memory address and display contents
   bne check_c
   jsr decrement_address
@@ -764,7 +804,8 @@ check_b:
 
 check_c:
 
-  cmp #'C'
+  ;cmp #'C'
+  cmp #$0C
   ; return to MONITOR
   bne check_d
   ;rmb5 FLAGS
@@ -779,7 +820,8 @@ check_c:
 
 check_d:
 
-  cmp #'D'
+  ;cmp #'D'
+  cmp #$0D
   ; move monitor to entered 4-digit memory address
   bne check_e
   lda BYTE
@@ -792,7 +834,8 @@ check_d:
 
 check_e:
 
-  cmp #'E'
+  ;cmp #'E'
+  cmp #$0E
   ; insert (POKE) byte of data in to current memory address, then increment to next address
   bne check_f
   lda BYTE
@@ -805,7 +848,8 @@ check_e:
 
 check_f:
 
-  cmp #'F'
+  ;cmp #'F'
+  cmp #$0F
   ; show 8-byte wide block of memory
   bne check_1
   ldy #$00
@@ -818,22 +862,15 @@ check_f:
 
 check_1:
 
-  cmp #'1'
-  ; show/auto-update clock
+  ;cmp #'1'
+  cmp #$01
   bne check_3
-  ;jsr lcd_2_clear
-  ;lda #<emt
-  ;sta MESSAGE_POINTER
-  ;lda #>emt
-  ;sta MESSAGE_POINTER + 1
-  ;;jsr print4
-  ;jsr print2_2
-  ;smb5 FLAGS
   jmp exit_key_irq
 
 check_3:
 
-  cmp #'3'
+  ;cmp #'3'
+  cmp #$03
   bne check_6
   ldy #$00
   jsr increment_block
@@ -842,7 +879,8 @@ check_3:
 
 check_6:
 
-  cmp #'6'
+  ;cmp #'6'
+  cmp #$06
   bne check_9
   ldy #$00
   jsr decrement_block
@@ -851,25 +889,24 @@ check_6:
 
 check_9:
 
-  cmp #'9'
+  ;cmp #'9'
+  cmp #$09
   bne check_4
   jsr show_block
   jmp exit_key_irq
 
 check_4:
 
-  cmp #'4'
+  ;cmp #'4'
+  cmp #$04
   bne check_5
-  ;lda BYTE
-  ;sta HEXB
-  ;lda BYTE + 1
-  ;sta HEXB + 1
-  ;jsr byte_to_hex
+  jsr show_kitt
   jmp exit_key_irq
 
 check_5:
 
-  cmp #'5'
+  ;cmp #'5'
+  cmp #$05
   bne exit_key_irq
   jsr $3F00
   jmp exit_key_irq
@@ -902,7 +939,7 @@ nmi:
   phx
   phy
 
-  bit T1CL_3      ; clear not clear = handle the TIMER interrupt
+  bit T1CL_3      ; reset interrupt flag
   jsr rtc
   jmp exit_nmi
 
@@ -948,17 +985,19 @@ irq:
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-test_timer1:
+;test_timer1:
 
-  asl           ; shift IFR left twice puts the TI1 bit into CARRY....
-  asl
-  bcc test_cb1  ; carry clear = next test
-  bit T1CL_1      ; clear not clear = handle the TIMER interrupt
-  jsr rtc
-  jmp exit_irq
+;  asl           ; shift IFR left twice puts the TI1 bit into CARRY....
+;  asl
+;  bcc test_cb1  ; carry clear = next test
+;  bit T1CL_1      ; clear not clear = handle the TIMER interrupt
+;  jsr rtc
+;  jmp exit_irq
 
 test_cb1:
 
+  asl
+  asl
   asl
   asl
   bcc test_cb2
@@ -992,6 +1031,7 @@ exit_irq:
   pla
   rti
 
+pause_msg: .asciiz "Mark Time     "
 start_msg: .asciiz "<shift>+C to start"
 new_address_msg: .asciiz "View/Edit Memory"
 block_address_msg: .asciiz "8 Byte view"
