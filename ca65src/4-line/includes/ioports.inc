@@ -68,17 +68,12 @@ S_CON_1   = ACIA_1 + 3  ; Control
 
 via_1_init:
 
-  ;lda #%01000000
-  ;sta ACR_1
-  ;lda #$0E
-  ;sta T1CL_1
-  ;lda #$27
-  ;sta T1CH_1
+
   
-  lda #%10011010  ; , CA1 active
+  lda #%10011010  ; CB2, CA1 active
   sta IER_1
   
-  lda #$01  ;  CA1 active high-transition 
+  lda #%01010001  ;  CA1 active high-transition, CB2 low
   sta PCR_1
   
   lda #%01111111 ; Set all pins on port B to output except BIT 7 which is used for "SHIFT/INSTRUCTION"  button
@@ -90,6 +85,7 @@ via_1_init:
 
 via_2_init:
 
+;; TIMER T1 is set up in functions.inc to act as source of beep tones
 
   lda #%11111111 ; set all pins on port A & B to output
   sta DDRA_2
@@ -99,23 +95,27 @@ via_2_init:
   rts
 
 via_3_init:
-  
-  lda #%01000000
+
+;; TIMER T1 used as TICK source for RTC - set for 10ms per tick
+;; $270E = 9998d = count 10,000 phi2 cycles @ 1MHz = 10ms per interrupt
+
+  lda #%01000000 ; DON'T use PB7 as a T1 pulse timer clock output (ACR b7 = 0)
+                 ; Use T1 Timer in continuous reset-interrupt mode (ACR b6 = 1)
   sta ACR_3
+  
+  ; set T1 delay for 10ms interrupts
   lda #$0E
   sta T1CL_3
   lda #$27
   sta T1CH_3
   
-  lda #%11000000  ; T1, CA1 active
+  lda #%11000000  ; Interrupt / T1 interrupt active
   sta IER_3
 
-  lda #%11111111 ; set all pins on port A & B to output
+  lda #%11111111 ; set all pins on port A & B to output for now 
   sta DDRA_3
   sta DDRB_3
-  lda #%00000000
-  sta IER_3
-
+  
   rts
 
 

@@ -16,7 +16,7 @@ readKeypad:
 ScanRow:
   sty PORTA_1
   lda PORTA_1
-  and #%00001111  ; mask off keypad input - only low 4 (keypad column) bits are read
+  and #$0F  ; mask off keypad input - only low 4 (keypad column) bits are read
   cmp #$00
   bne Row_Found   ; non-zero means a row output has been connected via a switch to a column input
   dex             ; zero means it hasn't been found, so check next row down
