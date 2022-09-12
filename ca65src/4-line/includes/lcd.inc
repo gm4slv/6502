@@ -27,59 +27,73 @@ lcd_start:
   jsr lcd_instruction
   jsr lcd_entry_mode
   jsr lcd_cursor_off
-  jsr lcd_clear
-  ;jsr lcd_add0
-  rts
+  ;jsr lcd_clear
+  ; CONSIDER CHANGE
+  jmp lcd_clear
+  ;rts
 
 lcd_entry_mode:
   lda #%00000110 ; Increment and shift cursor; don't shift display
-  jsr lcd_instruction
-  rts
+  ;jsr lcd_instruction
+  ; CONSIDER CHANGE
+  jmp lcd_instruction
+  ;rts
 
 lcd_home:
   lda #%00000010 ; cursor HOME
-  jsr lcd_instruction
-  rts
+  ; CONDSIDER CHANGE
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_add0:
   lda #%10000000 ; back to zero position
-  jsr lcd_instruction
-  rts
+  ; CONSIDER CHANGE
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_clear:
   lda #%00000001 ; Clear display
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_cursor_off:
   lda #%00001100 ; Display on; cursor off; blink off
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_cursor_on:
   lda #%00001111 ; Display on; cursor on; blink on
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_line_1:
   lda #($80)
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_line_2:
   lda #($80 + $40)
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_line_3:
   lda #($80 + $14)
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
 
 lcd_line_4:
   lda #($80 + $54)
-  jsr lcd_instruction
-  rts
+  jmp lcd_instruction
+  ;jsr lcd_instruction
+  ;rts
  
 lcd_wait:
   pha
@@ -158,49 +172,57 @@ lcd_2_start:
   jsr lcd_2_instruction
   jsr lcd_2_entry_mode
   jsr lcd_2_cursor_off
-  jsr lcd_2_clear
-  ;jsr lcd_add0
-  rts
+  jmp lcd_2_clear
+  ;jsr lcd_2_clear
+  ;rts
 
 lcd_2_entry_mode:
   lda #%00000110 ; Increment and shift cursor; don't shift display
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_home:
   lda #%00000010 ; cursor HOME
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_add0:
   lda #%10000000 ; back to zero position
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_clear:
   lda #%00000001 ; Clear display
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_cursor_off:
   lda #%00001100 ; Display on; cursor off; blink off
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_cursor_on:
   lda #%00001111 ; Display on; cursor on; blink on
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_line_1:
   lda #($80)
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_line_2:
   lda #($80 + $40)
-  jsr lcd_2_instruction
-  rts
+  jmp lcd_2_instruction
+  ;jsr lcd_2_instruction
+  ;rts
 
 lcd_2_wait:
   pha

@@ -33,7 +33,8 @@ MEM_POINTER:      .res 2
 LED2_LAST:        .res 1
 LED3_LAST:        .res 1
 LAST_KIT:         .res 1
-
+BEEP_ON_TIME:     .res 1
+BEEP_DELAY_TIME:  .res 1 ; $01 = 1 tick ~10ms, $FF = 255 ticks ~2.5 seconds
 
 .bss
 
@@ -48,6 +49,8 @@ TEMP:             .res 1
 TEMP2:            .res 1
 HI_DIGIT:         .res 1
 LO_DIGIT:         .res 1
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;        INCLUDES 
@@ -105,8 +108,12 @@ init_variables:
   stz DUMP_POINTER + 1
   stz MESSAGE_POINTER
   stz MESSAGE_POINTER + 1
-  stz BEEP_POINTER
-  stz BEEP_POINTER + 1
+  lda #$3F
+  sta BEEP_POINTER
+  lda #$03
+  sta BEEP_POINTER + 1
+  lda #$0A              ; standard BEEP = 10 ticks, ~100mS
+  sta BEEP_DELAY_TIME
   stz TOGGLE_TIME
   stz CLOCK_LAST
   stz LED2_LAST
@@ -269,6 +276,7 @@ loop:
 
   wai
   jsr check_flags
+  jsr clock_via_3
   jmp loop
 
 
@@ -278,6 +286,17 @@ loop:
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;     FLAGS - for control of background tasks
+;;
+;;   bit7   | bit6   | bit5   |  bit4 | bit3 | bit2 | bit1 | bit0
+;; =========|========|========|=======|======|======|======|===========
+;;   beep   |        | clock  |       |      | kitt |      | mem block
+;;   active |        | active |       |      | leds |      | update view
+
+         
 check_flags:
 
 flag_zero:
@@ -285,16 +304,30 @@ flag_zero:
   jsr update_block_address
 flag_two:
   bbr2 FLAGS, flag_five
-  jsr kit_led_via_3
+  jsr kit_led_via_2
 flag_five:
-  bbr5 FLAGS, flag_three
+  bbr5 FLAGS, flag_seven
   jsr clock_time
+flag_seven:
+  bbr7 FLAGS, flag_three
+  jsr check_beep
 flag_three:
   rts
 
+;;;;;;;;;;
+;;;;;;;;;;
+;;;
+check_beep:
+  sec
+  lda TICKS
+  sbc BEEP_ON_TIME
+  cmp BEEP_DELAY_TIME
+  bcc @exit
+  jsr beep_off
+@exit:
+  rts
 
-
-kit_led_via_3:
+kit_led_via_2:
 
   sec
   lda TICKS
@@ -303,9 +336,9 @@ kit_led_via_3:
   bcc exit_kit_leds
   ldy LAST_KIT
   lda kitLeds,y
-  sta PORTB_3
+  sta PORTA_2
   dey
-  bne @exit 
+  bne @exit
   ldy #$10
   sty LAST_KIT
 @exit:
@@ -315,32 +348,32 @@ kit_led_via_3:
 exit_kit_leds:
   rts
 
-clock_via_2:
+clock_via_3:
   sec
   lda TICKS
   sbc LED2_LAST
   cmp #100
-  bcc exit_clock_via_2
+  bcc exit_clock_via_3
   lda TEN_SECONDS
   asl
   asl
   asl
   asl
   ora SECONDS
-  sta PORTA_2
+  sta PORTB_3
 
-  lda TEN_MINUTES
-  asl
-  asl
-  asl
-  asl
-  ora MINUTES
-  sta PORTB_2
+  ;lda TEN_MINUTES
+  ;asl
+  ;asl
+  ;asl
+  ;asl
+  ;ora MINUTES
+  ;sta PORTB_2
 
 @exit:
   lda TICKS
   sta LED2_LAST
-exit_clock_via_2:
+exit_clock_via_3:
   rts
 
 
@@ -714,15 +747,37 @@ reset_met:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 cb1_handler:
 
-  lda #$04
-  jsr beep_from_list
-  rts
+  ;lda #$04
+  lda #$05
+  sta BEEP_DELAY_TIME
+  ;jsr beep_from_pointer
+  
+  ; CONSIDER Change:
+  ;
+  ; jsr beep_from_pointer
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp beep_from_pointer
+  
+  ;rts
   
 cb2_handler:
-
+  lda #$14
+  sta BEEP_DELAY_TIME
   lda #$02 ; tone # = 100Hz
-  jsr beep_from_list
-  rts
+  ;jsr beep_from_list
+  ; CONSIDER Change:
+  ;
+  ; jsr beep_from-list
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp beep_from_list
+  
+  ;rts
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -870,7 +925,7 @@ check_5:
 
   cmp #$05
   bne exit_key_irq
-  jsr beep2
+  jsr beep
   jsr $3F00
   jmp exit_key_irq
 
@@ -891,8 +946,16 @@ handle_new_char:
  
 exit_key_irq:
 
-  jsr scan  ; re-enable keypad
-  rts
+  ;jsr scan  ; re-enable keypad
+  ; CONSIDER Change:
+  ;
+  ; jsr scan
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp scan
+  ;rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

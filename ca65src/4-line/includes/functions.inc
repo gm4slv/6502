@@ -62,13 +62,16 @@ beep_from_list:
   
   lda #%11000000
   sta ACR_2
-  
-  jsr beep_delay
-  
-  lda #%01000000
-  sta ACR_2
-  
-  rts
+  ;jsr beep_on 
+  ; CONSIDER Change:
+  ;
+  ; jsr beep_on
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp beep_on
+  ;rts
   
 beep:
 
@@ -78,13 +81,35 @@ beep:
   sta T1CL_2
   lda #>count_800
   sta T1CH_2
-  lda #%11000000
-  sta ACR_2
-  jsr beep_delay
+  ;jsr beep_on
+  ; CONSIDER Change:
+  ;
+  ; jsr beep_on
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp beep_on
+ 
+  ;rts
+  
+beep_on:
+    lda TICKS
+    sta BEEP_ON_TIME
+    lda #%11000000
+    sta ACR_2
+    smb7 FLAGS
+    rts
+    
+beep_off:
+  rmb7 FLAGS
   lda #%01000000
   sta ACR_2
-  rts
+  lda #$0A              ; restore standard 0.1s Beep length in case the caller had set a
+  sta BEEP_DELAY_TIME   ; new BEEP_DELAY_TIME
   
+  rts
+
 beep_from_pointer:  ; put the 2 bytes for the required count into BEEP_POINTER and BEEP_POINTER + 1 and then
                     ; call beep_from_pointer
 
@@ -94,14 +119,17 @@ beep_from_pointer:  ; put the 2 bytes for the required count into BEEP_POINTER a
   lda BEEP_POINTER + 1
   sta T1CH_2
 
-  lda #%11000000 ; enable PB7 pulses out 
-  sta ACR_2
+  ;jsr beep_on
+  ; CONSIDER Change:
+  ;
+  ; jsr beep_on
+  ; rts
+  ;
+  ; becomes
+  ; 
+  jmp beep_on
   
-  jsr beep_delay
-  
-  lda #%01000000 ; disable PB7 pulses out
-  sta ACR_2
-  rts  
+  ;rts  
 
 beep2: ; high/low beep for boot-up success notification
 
@@ -115,19 +143,12 @@ beep2: ; high/low beep for boot-up success notification
   sta ACR_2
   
   jsr beep_delay
-  
-
-  
 
 ; 800Hz
   lda #<count_800
   sta T1CL_2
   lda #>count_800
   sta T1CH_2
-  ldx #$ff
-  ldy #$7f
-  
-  jsr beep_delay
 
   lda #%01000000
   sta ACR_2
@@ -141,7 +162,7 @@ beep2: ; high/low beep for boot-up success notification
 
 beep_delay:
   ldx #$ff
-  ldy #$38  ; <= set here to adjjust the beep length
+  ldy #$38  ; <= set here to adjust the beep length
 @loop:
   nop
   dex
@@ -149,6 +170,7 @@ beep_delay:
   dey
   bne @loop
   rts
+
 
 
 
@@ -199,16 +221,20 @@ bintoascii:
   inx
 
   lda binascii,x
-  jsr print_char
-  rts
+  ;jsr print_char
+  ; CONSIDER CHANGE
+  jmp print_char
+  ;rts
 
 single_figure:
   asl
   tax
   inx
   lda binascii,x
-  jsr print_char
-  rts
+  ;jsr print_char
+  ;CONSIDER CHANGE
+  jmp print_char
+  ;rts
 
 bintoascii_2:
 
@@ -222,16 +248,20 @@ bintoascii_2:
   inx
 
   lda binascii,x
-  jsr print_2_char
-  rts
+  ;jsr print_2_char
+  ; CONSIDER CHANGE
+  jmp print_2_char
+  ;rts
 
 single_figure_2:
   asl
   tax
   inx
   lda binascii,x
-  jsr print_2_char
-  rts
+  ;jsr print_2_char
+  ; CONSIDER CHANGE
+  jmp print_2_char
+  ;rts
 
 
 binascii: .byte "00010203040506070809"

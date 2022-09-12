@@ -1,9 +1,9 @@
 Modules list:
 -------------
 beep_monitor_dev.o:
-    CODE              Offs=000000  Size=000A51  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=000A44  Align=00001  Fill=0000
     BSS               Offs=000000  Size=000011  Align=00001  Fill=0000
-    ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000000  Size=00001C  Align=00001  Fill=0000
     VECTORS           Offs=000000  Size=000006  Align=00001  Fill=0000
 
 
@@ -11,9 +11,9 @@ Segment list:
 -------------
 Name                   Start     End    Size  Align
 ----------------------------------------------------
-ZEROPAGE              000000  000019  00001A  00001
+ZEROPAGE              000000  00001B  00001C  00001
 BSS                   000200  000210  000011  00001
-CODE                  008000  008A50  000A51  00001
+CODE                  008000  008A43  000A44  00001
 VECTORS               00FFFA  00FFFF  000006  00001
 
 

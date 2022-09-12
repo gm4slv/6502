@@ -39,7 +39,7 @@ rtc:
 ;; The values are stored in RAM as binary values, and need to be converted to 
 ;; ASCII characters when they are displayed on LCD
 ;;
-;;  The bulk of this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
+;;  The basis of this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
 ;;
 inc_MET:
   inc CENTISEC
