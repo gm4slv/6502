@@ -1,0 +1,297 @@
+ca65 V2.18 - Debian 2.19-1
+Main file   : spi_dev.s
+Current file: spi_dev.s
+
+000000r 1               
+000000r 1               
+000000r 1               SCK   = %00000001
+000000r 1               MOSI  = %00000010
+000000r 1               CS    = %00000100
+000000r 1               MISO  = %01000000
+000000r 1               
+000000r 1               
+000000r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000000r 1               ;;
+000000r 1               ;;        INCLUDES
+000000r 1               ;;
+000000r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000000r 1               
+000000r 1               
+000000r 1               .include "../includes/ioports.inc"
+000000r 2               
+000000r 2                 .code
+000000r 2               
+000000r 2               ; VIA_1 Port addresses
+000000r 2               VIA_1     = $6000
+000000r 2               PORTB_1   = VIA_1
+000000r 2               PORTA_1   = VIA_1 + 1
+000000r 2               DDRB_1    = VIA_1 + 2
+000000r 2               DDRA_1    = VIA_1 + 3
+000000r 2               T1CL_1    = VIA_1 + 4
+000000r 2               T1CH_1    = VIA_1 + 5
+000000r 2               T1LL_1    = VIA_1 + 6
+000000r 2               T1LH_1    = VIA_1 + 7
+000000r 2               T2CL_1    = VIA_1 + 8
+000000r 2               T2CH_1    = VIA_1 + 9
+000000r 2               SR_1      = VIA_1 + 10
+000000r 2               ACR_1     = VIA_1 + 11
+000000r 2               PCR_1     = VIA_1 + 12
+000000r 2               IFR_1     = VIA_1 + 13
+000000r 2               IER_1     = VIA_1 + 14
+000000r 2               PORTA_NO_HS_1 = VIA_1 + 15
+000000r 2               
+000000r 2               ; VIA_2 Port addresses
+000000r 2               VIA_2     = $5000
+000000r 2               PORTB_2   = VIA_2
+000000r 2               PORTA_2   = VIA_2 + 1
+000000r 2               DDRB_2    = VIA_2 + 2
+000000r 2               DDRA_2    = VIA_2 + 3
+000000r 2               T1CL_2    = VIA_2 + 4
+000000r 2               T1CH_2    = VIA_2 + 5
+000000r 2               T1LL_2    = VIA_2 + 6
+000000r 2               T1LH_2    = VIA_2 + 7
+000000r 2               T2CL_2    = VIA_2 + 8
+000000r 2               T2CH_2    = VIA_2 + 9
+000000r 2               SR_2      = VIA_2 + 10
+000000r 2               ACR_2     = VIA_2 + 11
+000000r 2               PCR_2     = VIA_2 + 12
+000000r 2               IFR_2     = VIA_2 + 13
+000000r 2               IER_2     = VIA_2 + 14
+000000r 2               PORTA_NO_HS_2 = VIA_2 + 15
+000000r 2               
+000000r 2               ; VIA_3 Port addresses
+000000r 2               VIA_3     = $4800
+000000r 2               PORTB_3   = VIA_3
+000000r 2               PORTA_3   = VIA_3 + 1
+000000r 2               DDRB_3    = VIA_3 + 2
+000000r 2               DDRA_3    = VIA_3 + 3
+000000r 2               T1CL_3    = VIA_3 + 4
+000000r 2               T1CH_3    = VIA_3 + 5
+000000r 2               T1LL_3    = VIA_3 + 6
+000000r 2               T1LH_3    = VIA_3 + 7
+000000r 2               T2CL_3    = VIA_3 + 8
+000000r 2               T2CH_3    = VIA_3 + 9
+000000r 2               SR_3      = VIA_3 + 10
+000000r 2               ACR_3     = VIA_3 + 11
+000000r 2               PCR_3     = VIA_3 + 12
+000000r 2               IFR_3     = VIA_3 + 13
+000000r 2               IER_3     = VIA_3 + 14
+000000r 2               PORTA_NO_HS_3 = VIA_3 + 15
+000000r 2               
+000000r 2               ; ACIA_1 Port Addresses
+000000r 2               ACIA_1    = $4400
+000000r 2               S_TXRX_1  = ACIA_1      ; TXD / RXD
+000000r 2               S_STA_1   = ACIA_1 + 1  ; Status
+000000r 2               S_COM_1   = ACIA_1 + 2  ; Command
+000000r 2               S_CON_1   = ACIA_1 + 3  ; Control
+000000r 2               
+000000r 2               
+000000r 2               via_1_init:
+000000r 2               
+000000r 2               
+000000r 2               
+000000r 2  A9 9A          lda #%10011010  ; CB2, CA1 active
+000002r 2  8D 0E 60       sta IER_1
+000005r 2               
+000005r 2  A9 51          lda #%01010001  ;  CA1 active high-transition, CB2 low
+000007r 2  8D 0C 60       sta PCR_1
+00000Ar 2               
+00000Ar 2  A9 7F          lda #%01111111 ; Set all pins on port B to output except BIT 7 which is used for "SHIFT/INSTRUCTION"  button
+00000Cr 2  8D 02 60       sta DDRB_1
+00000Fr 2  A9 F0          lda #%11110000 ; Set low-nibble pins on port A to input and high-nibble pins to output, for keypad
+000011r 2  8D 03 60       sta DDRA_1
+000014r 2               
+000014r 2  60             rts
+000015r 2               
+000015r 2               via_2_init:
+000015r 2               
+000015r 2               ;; TIMER T1 is set up in functions.inc to act as source of beep tones
+000015r 2               
+000015r 2  A9 FF          lda #%11111111 ; set all pins on port A & B to output
+000017r 2  8D 03 50       sta DDRA_2
+00001Ar 2  8D 02 50       sta DDRB_2
+00001Dr 2  A9 00          lda #%00000000
+00001Fr 2  8D 0E 50       sta IER_2
+000022r 2  60             rts
+000023r 2               
+000023r 2               via_3_init:
+000023r 2               
+000023r 2               ;; TIMER T1 used as TICK source for RTC - set for 10ms per tick
+000023r 2               ;; $270E = 9998d = count 10,000 phi2 cycles @ 1MHz = 10ms per interrupt
+000023r 2               
+000023r 2  A9 40          lda #%01000000 ; DON'T use PB7 as a T1 pulse timer clock output (ACR b7 = 0)
+000025r 2                                ; Use T1 Timer in continuous reset-interrupt mode (ACR b6 = 1)
+000025r 2  8D 0B 48       sta ACR_3
+000028r 2               
+000028r 2                 ; set T1 delay for 10ms interrupts
+000028r 2  A9 0E          lda #$0E
+00002Ar 2  8D 04 48       sta T1CL_3
+00002Dr 2  A9 27          lda #$27
+00002Fr 2  8D 05 48       sta T1CH_3
+000032r 2               
+000032r 2  A9 C0          lda #%11000000  ; Interrupt / T1 interrupt active
+000034r 2  8D 0E 48       sta IER_3
+000037r 2               
+000037r 2  A9 FF          lda #%11111111 ; set all pins on port A & B to output for now
+000039r 2  8D 03 48       sta DDRA_3
+00003Cr 2  8D 02 48       sta DDRB_3
+00003Fr 2               
+00003Fr 2  60             rts
+000040r 2               
+000040r 2               
+000040r 2               
+000040r 2               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000040r 1               ;;
+000040r 1               ;;         START HERE
+000040r 1               ;;
+000040r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000040r 1               
+000040r 1               .code
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               ;; use VIA_3 PORTA = PORTA_3 / DDRA_3
+000040r 1               
+000040r 1               
+000040r 1               reset:
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               
+000040r 1               init_variables:
+000040r 1               
+000040r 1               
+000040r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000040r 1               ;;
+000040r 1               ;;                 Main Loop
+000040r 1               ;;
+000040r 1               
+000040r 1               
+000040r 1               loop:
+000040r 1               
+000040r 1  A9 04          lda #CS
+000042r 1  8D 01 50       sta PORTA_2
+000045r 1  A9 6F          lda #00000111
+000047r 1  8D 03 50       sta DDRA_2
+00004Ar 1               
+00004Ar 1               ;; bitbang $D6 $02 = 11010000 00000020
+00004Ar 1               
+00004Ar 1               ;; send first byte $D6
+00004Ar 1               
+00004Ar 1  A9 02          lda #MOSI ; output bit (PA1) is a 1
+00004Cr 1  8D 01 50       sta PORTA_2
+00004Fr 1  A9 03          lda #(SCK | MOSI)
+000051r 1  8D 01 50       sta PORTA_2
+000054r 1               
+000054r 1  A9 02          lda #MOSI ; output bit (PA1) is a 1
+000056r 1  8D 01 50       sta PORTA_2
+000059r 1  A9 03          lda #(SCK | MOSI)
+00005Br 1  8D 01 50       sta PORTA_2
+00005Er 1               
+00005Er 1  A9 00          lda #0
+000060r 1  8D 01 50       sta PORTA_2
+000063r 1  A9 01          lda #SCK
+000065r 1  8D 01 50       sta PORTA_2
+000068r 1               
+000068r 1  A9 02          lda #MOSI ; output bit (PA1) is a 1
+00006Ar 1  8D 01 50       sta PORTA_2
+00006Dr 1  A9 03          lda #(SCK | MOSI)
+00006Fr 1  8D 01 50       sta PORTA_2
+000072r 1               
+000072r 1  A9 00          lda #0
+000074r 1  8D 01 50       sta PORTA_2
+000077r 1  A9 01          lda #SCK
+000079r 1  8D 01 50       sta PORTA_2
+00007Cr 1               
+00007Cr 1  A9 02          lda #MOSI
+00007Er 1  8D 01 50       sta PORTA_2
+000081r 1  A9 03          lda #(SCK | MOSI)
+000083r 1  8D 01 50       sta PORTA_2
+000086r 1               
+000086r 1  A9 02          lda #MOSI
+000088r 1  8D 01 50       sta PORTA_2
+00008Br 1  A9 03          lda #(SCK | MOSI)
+00008Dr 1  8D 01 50       sta PORTA_2
+000090r 1               
+000090r 1  A9 00          lda #0
+000092r 1  8D 01 50       sta PORTA_2
+000095r 1  A9 01          lda #SCK
+000097r 1  8D 01 50       sta PORTA_2
+00009Ar 1               
+00009Ar 1               ;; send second byte $02
+00009Ar 1               
+00009Ar 1  A9 00          lda #0
+00009Cr 1  8D 01 50       sta PORTA_2
+00009Fr 1  A9 01          lda #SCK
+0000A1r 1  8D 01 50       sta PORTA_2
+0000A4r 1               
+0000A4r 1  A9 00          lda #0
+0000A6r 1  8D 01 50       sta PORTA_2
+0000A9r 1  A9 01          lda #SCK
+0000ABr 1  8D 01 50       sta PORTA_2
+0000AEr 1               
+0000AEr 1  A9 00          lda #0
+0000B0r 1  8D 01 50       sta PORTA_2
+0000B3r 1  A9 01          lda #SCK
+0000B5r 1  8D 01 50       sta PORTA_2
+0000B8r 1               
+0000B8r 1  A9 00          lda #0
+0000BAr 1  8D 01 50       sta PORTA_2
+0000BDr 1  A9 01          lda #SCK
+0000BFr 1  8D 01 50       sta PORTA_2
+0000C2r 1               
+0000C2r 1  A9 00          lda #0
+0000C4r 1  8D 01 50       sta PORTA_2
+0000C7r 1  A9 01          lda #SCK
+0000C9r 1  8D 01 50       sta PORTA_2
+0000CCr 1               
+0000CCr 1  A9 00          lda #0
+0000CEr 1  8D 01 50       sta PORTA_2
+0000D1r 1  A9 01          lda #SCK
+0000D3r 1  8D 01 50       sta PORTA_2
+0000D6r 1               
+0000D6r 1  A9 02          lda #MOSI
+0000D8r 1  8D 01 50       sta PORTA_2
+0000DBr 1  A9 03          lda #(SCK | MOSI)
+0000DDr 1  8D 01 50       sta PORTA_2
+0000E0r 1               
+0000E0r 1  A9 00          lda #0
+0000E2r 1  8D 01 50       sta PORTA_2
+0000E5r 1  A9 01          lda #SCK
+0000E7r 1  8D 01 50       sta PORTA_2
+0000EAr 1               
+0000EAr 1  A9 04          lda #CS
+0000ECr 1  8D 01 50       sta PORTA_2
+0000EFr 1               
+0000EFr 1  A2 7F          ldx #$7F
+0000F1r 1               @delay:
+0000F1r 1  CA             dex
+0000F2r 1  D0 FD          bne @delay
+0000F4r 1  4C rr rr       jmp loop
+0000F7r 1               
+0000F7r 1               
+0000F7r 1               
+0000F7r 1               nmi:
+0000F7r 1               
+0000F7r 1               irq:
+0000F7r 1               
+0000F7r 1               ; Reset/IRQ vectors
+0000F7r 1               
+0000F7r 1               .segment "VECTORS"
+000000r 1               
+000000r 1  rr rr          .word nmi
+000002r 1  rr rr          .word reset
+000004r 1  rr rr          .word irq
+000004r 1               

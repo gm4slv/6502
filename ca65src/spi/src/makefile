@@ -1,7 +1,7 @@
 
-ROM_NAME=beep_monitor_spi_trx_dev
+ROM_NAME=spi_trx_dev
 
-ASM_SOURCES=beep_monitor_spi_trx_dev.s
+ASM_SOURCES=spi_trx_dev.s
 
 FIRMWARE_CFG=../../../ca65src/firmware.cfg
 

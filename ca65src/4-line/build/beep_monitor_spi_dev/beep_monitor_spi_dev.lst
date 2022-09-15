@@ -1,0 +1,2265 @@
+ca65 V2.18 - Debian 2.19-1
+Main file   : beep_monitor_spi_dev.s
+Current file: beep_monitor_spi_dev.s
+
+000000r 1               ;;
+000000r 1               ;; DEV updates:
+000000r 1               ;;
+000000r 1               ;;1) pre-load USER MEM @ user_ram
+000000r 1               ;;
+000000r 1               ;;2) set new VIAs for OUTPUT on both ports A & B
+000000r 1               ;;
+000000r 1               ;;3) TESTING new VIAS with flashing LEDs on all ports
+000000r 1               ;;
+000000r 1               ;;4) Add second LCD on VIA_2 PORTA_2 ?
+000000r 1               ;;
+000000r 1               ;;5) BEEP using VIA2 T1 on PORTB_2 bit 7
+000000r 1               ;;
+000000r 1               
+000000r 1               .zeropage
+000000r 1               
+000000r 1  xx xx        BEEP_POINTER:     .res 2
+000002r 1  xx xx        DUMP_POINTER:     .res 2
+000004r 1  xx           FLAGS:            .res 1
+000005r 1  xx           TOGGLE_TIME:      .res 1
+000006r 1  xx           CLOCK_LAST:       .res 1
+000007r 1  xx xx        MESSAGE_POINTER:  .res 2
+000009r 1  xx xx xx xx  TICKS:            .res 4
+00000Dr 1  xx           CENTISEC:         .res 1
+00000Er 1  xx           HUNDRED_HRS:      .res 1
+00000Fr 1  xx           TEN_HRS:          .res 1
+000010r 1  xx           HRS:              .res 1
+000011r 1  xx           TEN_MINUTES:      .res 1
+000012r 1  xx           MINUTES:          .res 1
+000013r 1  xx           TEN_SECONDS:      .res 1
+000014r 1  xx           SECONDS:          .res 1
+000015r 1  xx xx        MEM_POINTER:      .res 2
+000017r 1  xx           LED2_LAST:        .res 1
+000018r 1  xx           SPI_LAST:         .res 1
+000019r 1  xx           LAST_KIT:         .res 1
+00001Ar 1  xx           BEEP_ON_TIME:     .res 1
+00001Br 1  xx           BEEP_DELAY_TIME:  .res 1 ; $01 = 1 tick ~10ms, $FF = 255 ticks ~2.5 seconds
+00001Cr 1               
+00001Cr 1               .bss
+000000r 1               
+000000r 1  xx           INKEY:            .res 1
+000001r 1  xx xx xx xx  KEY_PRESS:        .res 4
+000005r 1  xx xx        BYTE:             .res 2
+000007r 1  xx           TENS:             .res 1
+000008r 1  xx           HUNDREDS:         .res 1
+000009r 1  xx xx        HEX:              .res 2
+00000Br 1  xx xx        HEXB:             .res 2
+00000Dr 1  xx           TEMP:             .res 1
+00000Er 1  xx           TEMP2:            .res 1
+00000Fr 1  xx           HI_DIGIT:         .res 1
+000010r 1  xx           LO_DIGIT:         .res 1
+000011r 1               
+000011r 1               
+000011r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000011r 1               ;;
+000011r 1               ;;        INCLUDES
+000011r 1               ;;
+000011r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000011r 1               
+000011r 1               
+000011r 1               .include "../includes/ioports.inc"
+000011r 2               
+000011r 2                 .code
+000000r 2               
+000000r 2               ; VIA_1 Port addresses
+000000r 2               VIA_1     = $6000
+000000r 2               PORTB_1   = VIA_1
+000000r 2               PORTA_1   = VIA_1 + 1
+000000r 2               DDRB_1    = VIA_1 + 2
+000000r 2               DDRA_1    = VIA_1 + 3
+000000r 2               T1CL_1    = VIA_1 + 4
+000000r 2               T1CH_1    = VIA_1 + 5
+000000r 2               T1LL_1    = VIA_1 + 6
+000000r 2               T1LH_1    = VIA_1 + 7
+000000r 2               T2CL_1    = VIA_1 + 8
+000000r 2               T2CH_1    = VIA_1 + 9
+000000r 2               SR_1      = VIA_1 + 10
+000000r 2               ACR_1     = VIA_1 + 11
+000000r 2               PCR_1     = VIA_1 + 12
+000000r 2               IFR_1     = VIA_1 + 13
+000000r 2               IER_1     = VIA_1 + 14
+000000r 2               PORTA_NO_HS_1 = VIA_1 + 15
+000000r 2               
+000000r 2               ; VIA_2 Port addresses
+000000r 2               VIA_2     = $5000
+000000r 2               PORTB_2   = VIA_2
+000000r 2               PORTA_2   = VIA_2 + 1
+000000r 2               DDRB_2    = VIA_2 + 2
+000000r 2               DDRA_2    = VIA_2 + 3
+000000r 2               T1CL_2    = VIA_2 + 4
+000000r 2               T1CH_2    = VIA_2 + 5
+000000r 2               T1LL_2    = VIA_2 + 6
+000000r 2               T1LH_2    = VIA_2 + 7
+000000r 2               T2CL_2    = VIA_2 + 8
+000000r 2               T2CH_2    = VIA_2 + 9
+000000r 2               SR_2      = VIA_2 + 10
+000000r 2               ACR_2     = VIA_2 + 11
+000000r 2               PCR_2     = VIA_2 + 12
+000000r 2               IFR_2     = VIA_2 + 13
+000000r 2               IER_2     = VIA_2 + 14
+000000r 2               PORTA_NO_HS_2 = VIA_2 + 15
+000000r 2               
+000000r 2               ; VIA_3 Port addresses
+000000r 2               VIA_3     = $4800
+000000r 2               PORTB_3   = VIA_3
+000000r 2               PORTA_3   = VIA_3 + 1
+000000r 2               DDRB_3    = VIA_3 + 2
+000000r 2               DDRA_3    = VIA_3 + 3
+000000r 2               T1CL_3    = VIA_3 + 4
+000000r 2               T1CH_3    = VIA_3 + 5
+000000r 2               T1LL_3    = VIA_3 + 6
+000000r 2               T1LH_3    = VIA_3 + 7
+000000r 2               T2CL_3    = VIA_3 + 8
+000000r 2               T2CH_3    = VIA_3 + 9
+000000r 2               SR_3      = VIA_3 + 10
+000000r 2               ACR_3     = VIA_3 + 11
+000000r 2               PCR_3     = VIA_3 + 12
+000000r 2               IFR_3     = VIA_3 + 13
+000000r 2               IER_3     = VIA_3 + 14
+000000r 2               PORTA_NO_HS_3 = VIA_3 + 15
+000000r 2               
+000000r 2               ; ACIA_1 Port Addresses
+000000r 2               ACIA_1    = $4400
+000000r 2               S_TXRX_1  = ACIA_1      ; TXD / RXD
+000000r 2               S_STA_1   = ACIA_1 + 1  ; Status
+000000r 2               S_COM_1   = ACIA_1 + 2  ; Command
+000000r 2               S_CON_1   = ACIA_1 + 3  ; Control
+000000r 2               
+000000r 2               
+000000r 2               via_1_init:
+000000r 2               
+000000r 2               
+000000r 2               
+000000r 2  A9 9A          lda #%10011010  ; CB2, CA1 active
+000002r 2  8D 0E 60       sta IER_1
+000005r 2               
+000005r 2  A9 51          lda #%01010001  ;  CA1 active high-transition, CB2 low
+000007r 2  8D 0C 60       sta PCR_1
+00000Ar 2               
+00000Ar 2  A9 7F          lda #%01111111 ; Set all pins on port B to output except BIT 7 which is used for "SHIFT/INSTRUCTION"  button
+00000Cr 2  8D 02 60       sta DDRB_1
+00000Fr 2  A9 F0          lda #%11110000 ; Set low-nibble pins on port A to input and high-nibble pins to output, for keypad
+000011r 2  8D 03 60       sta DDRA_1
+000014r 2               
+000014r 2  60             rts
+000015r 2               
+000015r 2               via_2_init:
+000015r 2               
+000015r 2               ;; TIMER T1 is set up in functions.inc to act as source of beep tones
+000015r 2               
+000015r 2  A9 FF          lda #%11111111 ; set all pins on port A & B to output
+000017r 2               
+000017r 2  8D 02 50       sta DDRB_2
+00001Ar 2  A9 00          lda #%00000000
+00001Cr 2  8D 0E 50       sta IER_2
+00001Fr 2  60             rts
+000020r 2               
+000020r 2               via_3_init:
+000020r 2               
+000020r 2               ;; TIMER T1 used as TICK source for RTC - set for 10ms per tick
+000020r 2               ;; $270E = 9998d = count 10,000 phi2 cycles @ 1MHz = 10ms per interrupt
+000020r 2               
+000020r 2  A9 40          lda #%01000000 ; DON'T use PB7 as a T1 pulse timer clock output (ACR b7 = 0)
+000022r 2                                ; Use T1 Timer in continuous reset-interrupt mode (ACR b6 = 1)
+000022r 2  8D 0B 48       sta ACR_3
+000025r 2               
+000025r 2                 ; set T1 delay for 10ms interrupts
+000025r 2  A9 0E          lda #$0E
+000027r 2  8D 04 48       sta T1CL_3
+00002Ar 2  A9 27          lda #$27
+00002Cr 2  8D 05 48       sta T1CH_3
+00002Fr 2               
+00002Fr 2  A9 C0          lda #%11000000  ; Interrupt / T1 interrupt active
+000031r 2  8D 0E 48       sta IER_3
+000034r 2               
+000034r 2  A9 FF          lda #%11111111 ; set all pins on port A & B to output for now
+000036r 2  8D 03 48       sta DDRA_3
+000039r 2  8D 02 48       sta DDRB_3
+00003Cr 2               
+00003Cr 2  60             rts
+00003Dr 2               
+00003Dr 2               
+00003Dr 2               
+00003Dr 2               
+00003Dr 1               .include "../includes/lcd.inc"
+00003Dr 2               
+00003Dr 2               .SEGMENT "DISPLAY"
+000000r 2               
+000000r 2               ;.code
+000000r 2               
+000000r 2               ; LCD Command masks
+000000r 2               E  = %01000000
+000000r 2               RW = %00100000
+000000r 2               RS = %00010000
+000000r 2               
+000000r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000000r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000000r 2               ;;
+000000r 2               ;;
+000000r 2               ;;                              LCD Functions
+000000r 2               ;;
+000000r 2               ;;
+000000r 2               ;;
+000000r 2               
+000000r 2               lcd_start:
+000000r 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+000002r 2  20 rr rr       jsr lcd_instruction
+000005r 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+000007r 2  20 rr rr       jsr lcd_instruction
+00000Ar 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+00000Cr 2  20 rr rr       jsr lcd_instruction
+00000Fr 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+000011r 2  20 rr rr       jsr lcd_instruction
+000014r 2  20 rr rr       jsr lcd_entry_mode
+000017r 2  20 rr rr       jsr lcd_cursor_off
+00001Ar 2                 ;jsr lcd_clear
+00001Ar 2                 ; CONSIDER CHANGE
+00001Ar 2  4C rr rr       jmp lcd_clear
+00001Dr 2                 ;rts
+00001Dr 2               
+00001Dr 2               lcd_entry_mode:
+00001Dr 2  A9 06          lda #%00000110 ; Increment and shift cursor; don't shift display
+00001Fr 2                 ;jsr lcd_instruction
+00001Fr 2                 ; CONSIDER CHANGE
+00001Fr 2  4C rr rr       jmp lcd_instruction
+000022r 2                 ;rts
+000022r 2               
+000022r 2               lcd_home:
+000022r 2  A9 02          lda #%00000010 ; cursor HOME
+000024r 2                 ; CONDSIDER CHANGE
+000024r 2  4C rr rr       jmp lcd_instruction
+000027r 2                 ;jsr lcd_instruction
+000027r 2                 ;rts
+000027r 2               
+000027r 2               lcd_add0:
+000027r 2  A9 80          lda #%10000000 ; back to zero position
+000029r 2                 ; CONSIDER CHANGE
+000029r 2  4C rr rr       jmp lcd_instruction
+00002Cr 2                 ;jsr lcd_instruction
+00002Cr 2                 ;rts
+00002Cr 2               
+00002Cr 2               lcd_clear:
+00002Cr 2  A9 01          lda #%00000001 ; Clear display
+00002Er 2  4C rr rr       jmp lcd_instruction
+000031r 2                 ;jsr lcd_instruction
+000031r 2                 ;rts
+000031r 2               
+000031r 2               lcd_cursor_off:
+000031r 2  A9 0C          lda #%00001100 ; Display on; cursor off; blink off
+000033r 2  4C rr rr       jmp lcd_instruction
+000036r 2                 ;jsr lcd_instruction
+000036r 2                 ;rts
+000036r 2               
+000036r 2               lcd_cursor_on:
+000036r 2  A9 0F          lda #%00001111 ; Display on; cursor on; blink on
+000038r 2  4C rr rr       jmp lcd_instruction
+00003Br 2                 ;jsr lcd_instruction
+00003Br 2                 ;rts
+00003Br 2               
+00003Br 2               lcd_line_1:
+00003Br 2  A9 80          lda #($80)
+00003Dr 2  4C rr rr       jmp lcd_instruction
+000040r 2                 ;jsr lcd_instruction
+000040r 2                 ;rts
+000040r 2               
+000040r 2               lcd_line_2:
+000040r 2  A9 C0          lda #($80 + $40)
+000042r 2  4C rr rr       jmp lcd_instruction
+000045r 2                 ;jsr lcd_instruction
+000045r 2                 ;rts
+000045r 2               
+000045r 2               lcd_line_3:
+000045r 2  A9 94          lda #($80 + $14)
+000047r 2  4C rr rr       jmp lcd_instruction
+00004Ar 2                 ;jsr lcd_instruction
+00004Ar 2                 ;rts
+00004Ar 2               
+00004Ar 2               lcd_line_4:
+00004Ar 2  A9 D4          lda #($80 + $54)
+00004Cr 2  4C rr rr       jmp lcd_instruction
+00004Fr 2                 ;jsr lcd_instruction
+00004Fr 2                 ;rts
+00004Fr 2               
+00004Fr 2               lcd_wait:
+00004Fr 2  48             pha
+000050r 2  A9 70          lda #%01110000  ; LCD data is input (don't change MSB BIT7, it has to stay ZERO for SHIFT Button input)
+000052r 2  8D 02 60       sta DDRB_1
+000055r 2               lcdbusy:
+000055r 2  A9 20          lda #RW
+000057r 2  8D 00 60       sta PORTB_1
+00005Ar 2  A9 60          lda #(RW | E)
+00005Cr 2  8D 00 60       sta PORTB_1
+00005Fr 2  AD 00 60       lda PORTB_1     ; Read high nibble
+000062r 2  48             pha             ; and put on stack since it has the busy flag
+000063r 2  A9 20          lda #RW
+000065r 2  8D 00 60       sta PORTB_1
+000068r 2  A9 60          lda #(RW | E)
+00006Ar 2  8D 00 60       sta PORTB_1
+00006Dr 2  AD 00 60       lda PORTB_1       ; Read low nibble
+000070r 2  68             pla             ; Get high nibble off stack
+000071r 2  29 08          and #%00001000
+000073r 2  D0 E0          bne lcdbusy
+000075r 2               
+000075r 2  A9 20          lda #RW
+000077r 2  8D 00 60       sta PORTB_1
+00007Ar 2  A9 7F          lda #%01111111  ; LCD data is output (don't change MSB BIT7, it has to stay ZERO for SHIFT Buttion input)
+00007Cr 2  8D 02 60       sta DDRB_1
+00007Fr 2  68             pla
+000080r 2  60             rts
+000081r 2               
+000081r 2               lcd_init:
+000081r 2  A9 02          lda #%00000010 ; Set 4-bit mode : DO ONCE AT POWER UP
+000083r 2  8D 00 60       sta PORTB_1
+000086r 2  09 40          ora #E
+000088r 2  8D 00 60       sta PORTB_1
+00008Br 2  29 0F          and #%00001111
+00008Dr 2  8D 00 60       sta PORTB_1
+000090r 2  60             rts
+000091r 2               
+000091r 2               lcd_instruction:
+000091r 2  20 rr rr       jsr lcd_wait
+000094r 2  48             pha
+000095r 2  4A             lsr
+000096r 2  4A             lsr
+000097r 2  4A             lsr
+000098r 2  4A             lsr            ; Send high 4 bits
+000099r 2  8D 00 60       sta PORTB_1
+00009Cr 2  09 40          ora #E         ; Set E bit to send instruction
+00009Er 2  8D 00 60       sta PORTB_1
+0000A1r 2  49 40          eor #E         ; Clear E bit
+0000A3r 2  8D 00 60       sta PORTB_1
+0000A6r 2  68             pla
+0000A7r 2  29 0F          and #%00001111 ; Send low 4 bits
+0000A9r 2  8D 00 60       sta PORTB_1
+0000ACr 2  09 40          ora #E         ; Set E bit to send instruction
+0000AEr 2  8D 00 60       sta PORTB_1
+0000B1r 2  49 40          eor #E         ; Clear E bit
+0000B3r 2  8D 00 60       sta PORTB_1
+0000B6r 2  60             rts
+0000B7r 2               
+0000B7r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0000B7r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0000B7r 2               ;;
+0000B7r 2               ;;
+0000B7r 2               ;;                              LCD 2 Functions
+0000B7r 2               ;;
+0000B7r 2               ;;
+0000B7r 2               ;;
+0000B7r 2               
+0000B7r 2               lcd_2_start:
+0000B7r 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+0000B9r 2  20 rr rr       jsr lcd_2_instruction
+0000BCr 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+0000BEr 2  20 rr rr       jsr lcd_2_instruction
+0000C1r 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+0000C3r 2  20 rr rr       jsr lcd_2_instruction
+0000C6r 2  A9 28          lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+0000C8r 2  20 rr rr       jsr lcd_2_instruction
+0000CBr 2  20 rr rr       jsr lcd_2_entry_mode
+0000CEr 2  20 rr rr       jsr lcd_2_cursor_off
+0000D1r 2  4C rr rr       jmp lcd_2_clear
+0000D4r 2                 ;jsr lcd_2_clear
+0000D4r 2                 ;rts
+0000D4r 2               
+0000D4r 2               lcd_2_entry_mode:
+0000D4r 2  A9 06          lda #%00000110 ; Increment and shift cursor; don't shift display
+0000D6r 2  4C rr rr       jmp lcd_2_instruction
+0000D9r 2                 ;jsr lcd_2_instruction
+0000D9r 2                 ;rts
+0000D9r 2               
+0000D9r 2               lcd_2_home:
+0000D9r 2  A9 02          lda #%00000010 ; cursor HOME
+0000DBr 2  4C rr rr       jmp lcd_2_instruction
+0000DEr 2                 ;jsr lcd_2_instruction
+0000DEr 2                 ;rts
+0000DEr 2               
+0000DEr 2               lcd_2_add0:
+0000DEr 2  A9 80          lda #%10000000 ; back to zero position
+0000E0r 2  4C rr rr       jmp lcd_2_instruction
+0000E3r 2                 ;jsr lcd_2_instruction
+0000E3r 2                 ;rts
+0000E3r 2               
+0000E3r 2               lcd_2_clear:
+0000E3r 2  A9 01          lda #%00000001 ; Clear display
+0000E5r 2  4C rr rr       jmp lcd_2_instruction
+0000E8r 2                 ;jsr lcd_2_instruction
+0000E8r 2                 ;rts
+0000E8r 2               
+0000E8r 2               lcd_2_cursor_off:
+0000E8r 2  A9 0C          lda #%00001100 ; Display on; cursor off; blink off
+0000EAr 2  4C rr rr       jmp lcd_2_instruction
+0000EDr 2                 ;jsr lcd_2_instruction
+0000EDr 2                 ;rts
+0000EDr 2               
+0000EDr 2               lcd_2_cursor_on:
+0000EDr 2  A9 0F          lda #%00001111 ; Display on; cursor on; blink on
+0000EFr 2  4C rr rr       jmp lcd_2_instruction
+0000F2r 2                 ;jsr lcd_2_instruction
+0000F2r 2                 ;rts
+0000F2r 2               
+0000F2r 2               lcd_2_line_1:
+0000F2r 2  A9 80          lda #($80)
+0000F4r 2  4C rr rr       jmp lcd_2_instruction
+0000F7r 2                 ;jsr lcd_2_instruction
+0000F7r 2                 ;rts
+0000F7r 2               
+0000F7r 2               lcd_2_line_2:
+0000F7r 2  A9 C0          lda #($80 + $40)
+0000F9r 2  4C rr rr       jmp lcd_2_instruction
+0000FCr 2                 ;jsr lcd_2_instruction
+0000FCr 2                 ;rts
+0000FCr 2               
+0000FCr 2               lcd_2_wait:
+0000FCr 2  48             pha
+0000FDr 2  A9 70          lda #%01110000  ; LCD data is input (don't change MSB BIT7, it has to stay ZERO for SHIFT Button input)
+0000FFr 2  8D 03 48       sta DDRA_3
+000102r 2               
+000102r 2               lcdbusy2:
+000102r 2  A9 20          lda #RW
+000104r 2  8D 01 48       sta PORTA_3
+000107r 2  A9 60          lda #(RW | E)
+000109r 2  8D 01 48       sta PORTA_3
+00010Cr 2  AD 01 48       lda PORTA_3     ; Read high nibble
+00010Fr 2  48             pha             ; and put on stack since it has the busy flag
+000110r 2  A9 20          lda #RW
+000112r 2  8D 01 48       sta PORTA_3
+000115r 2  A9 60          lda #(RW | E)
+000117r 2  8D 01 48       sta PORTA_3
+00011Ar 2  AD 01 48       lda PORTA_3       ; Read low nibble
+00011Dr 2  68             pla             ; Get high nibble off stack
+00011Er 2  29 08          and #%00001000
+000120r 2  D0 E0          bne lcdbusy2
+000122r 2               
+000122r 2  A9 20          lda #RW
+000124r 2  8D 01 48       sta PORTA_3
+000127r 2  A9 7F          lda #%01111111  ; LCD data is output (don't change MSB BIT7, it has to stay ZERO for SHIFT Buttion input)
+000129r 2  8D 03 48       sta DDRA_3
+00012Cr 2  68             pla
+00012Dr 2  60             rts
+00012Er 2               
+00012Er 2               lcd_2_init:
+00012Er 2  A9 02          lda #%00000010 ; Set 4-bit mode : DO ONCE AT POWER UP
+000130r 2  8D 01 48       sta PORTA_3
+000133r 2  09 40          ora #E
+000135r 2  8D 01 48       sta PORTA_3
+000138r 2  29 0F          and #%00001111
+00013Ar 2  8D 01 48       sta PORTA_3
+00013Dr 2  60             rts
+00013Er 2               
+00013Er 2               lcd_2_instruction:
+00013Er 2  20 rr rr       jsr lcd_2_wait
+000141r 2  48             pha
+000142r 2  4A             lsr
+000143r 2  4A             lsr
+000144r 2  4A             lsr
+000145r 2  4A             lsr            ; Send high 4 bits
+000146r 2  8D 01 48       sta PORTA_3
+000149r 2  09 40          ora #E         ; Set E bit to send instruction
+00014Br 2  8D 01 48       sta PORTA_3
+00014Er 2  49 40          eor #E         ; Clear E bit
+000150r 2  8D 01 48       sta PORTA_3
+000153r 2  68             pla
+000154r 2  29 0F          and #%00001111 ; Send low 4 bits
+000156r 2  8D 01 48       sta PORTA_3
+000159r 2  09 40          ora #E         ; Set E bit to send instruction
+00015Br 2  8D 01 48       sta PORTA_3
+00015Er 2  49 40          eor #E         ; Clear E bit
+000160r 2  8D 01 48       sta PORTA_3
+000163r 2  60             rts
+000164r 2               
+000164r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000164r 2               ;;
+000164r 2               ;;        PRINT Characters on LCD 2 - an ASCII value in Accumulator
+000164r 2               ;;        is printed on the display
+000164r 2               ;;
+000164r 2               
+000164r 2               print_2_char:
+000164r 2  20 rr rr       jsr lcd_2_wait
+000167r 2  48             pha
+000168r 2  4A             lsr
+000169r 2  4A             lsr
+00016Ar 2  4A             lsr
+00016Br 2  4A             lsr             ; Send high 4 bits
+00016Cr 2  09 10          ora #RS         ; Set RS
+00016Er 2  8D 01 48       sta PORTA_3
+000171r 2  09 40          ora #E          ; Set E bit to send instruction
+000173r 2  8D 01 48       sta PORTA_3
+000176r 2  49 40          eor #E          ; Clear E bit
+000178r 2  8D 01 48       sta PORTA_3
+00017Br 2  68             pla
+00017Cr 2  29 0F          and #%00001111  ; Send low 4 bits
+00017Er 2  09 10          ora #RS         ; Set RS
+000180r 2  8D 01 48       sta PORTA_3
+000183r 2  09 40          ora #E          ; Set E bit to send instruction
+000185r 2  8D 01 48       sta PORTA_3
+000188r 2  49 40          eor #E          ; Clear E bit
+00018Ar 2  8D 01 48       sta PORTA_3
+00018Dr 2  60             rts
+00018Er 2               
+00018Er 2               
+00018Er 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00018Er 2               ;;
+00018Er 2               ;;        PRINT Characters on LCD - an ASCII value in Accumulator
+00018Er 2               ;;        is printed on the display
+00018Er 2               ;;
+00018Er 2               
+00018Er 2               print_char:
+00018Er 2  20 rr rr       jsr lcd_wait
+000191r 2  48             pha
+000192r 2  4A             lsr
+000193r 2  4A             lsr
+000194r 2  4A             lsr
+000195r 2  4A             lsr             ; Send high 4 bits
+000196r 2  09 10          ora #RS         ; Set RS
+000198r 2  8D 00 60       sta PORTB_1
+00019Br 2  09 40          ora #E          ; Set E bit to send instruction
+00019Dr 2  8D 00 60       sta PORTB_1
+0001A0r 2  49 40          eor #E          ; Clear E bit
+0001A2r 2  8D 00 60       sta PORTB_1
+0001A5r 2  68             pla
+0001A6r 2  29 0F          and #%00001111  ; Send low 4 bits
+0001A8r 2  09 10          ora #RS         ; Set RS
+0001AAr 2  8D 00 60       sta PORTB_1
+0001ADr 2  09 40          ora #E          ; Set E bit to send instruction
+0001AFr 2  8D 00 60       sta PORTB_1
+0001B2r 2  49 40          eor #E          ; Clear E bit
+0001B4r 2  8D 00 60       sta PORTB_1
+0001B7r 2  60             rts
+0001B8r 2               
+0001B8r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0001B8r 2               ;;
+0001B8r 2               ;;            print on line 1 or line 2 of LCD 1 or 2
+0001B8r 2               ;;
+0001B8r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0001B8r 2               
+0001B8r 2               
+0001B8r 2               
+0001B8r 2               print1:
+0001B8r 2  20 rr rr       jsr lcd_line_1
+0001BBr 2  A0 00          ldy #0
+0001BDr 2  4C rr rr       jmp line
+0001C0r 2               print2:
+0001C0r 2  20 rr rr       jsr lcd_line_2
+0001C3r 2  A0 00          ldy #0
+0001C5r 2  4C rr rr       jmp line
+0001C8r 2               print3:
+0001C8r 2  20 rr rr       jsr lcd_line_3
+0001CBr 2  A0 00          ldy #0
+0001CDr 2  4C rr rr       jmp line
+0001D0r 2               print4:
+0001D0r 2  20 rr rr       jsr lcd_line_4
+0001D3r 2  A0 00          ldy #0
+0001D5r 2  4C rr rr       jmp line
+0001D8r 2               
+0001D8r 2               print2_2:
+0001D8r 2  20 rr rr       jsr lcd_2_line_2
+0001DBr 2  A0 00          ldy #0
+0001DDr 2  4C rr rr       jmp line2
+0001E0r 2               
+0001E0r 2               line:
+0001E0r 2  B1 rr          lda (MESSAGE_POINTER),y
+0001E2r 2  F0 07          beq @exit
+0001E4r 2  20 rr rr       jsr print_char
+0001E7r 2  C8             iny
+0001E8r 2  4C rr rr       jmp line
+0001EBr 2               @exit:
+0001EBr 2  60             rts
+0001ECr 2               
+0001ECr 2               line2:
+0001ECr 2  B1 rr          lda (MESSAGE_POINTER),y
+0001EEr 2  F0 07          beq @exit
+0001F0r 2  20 rr rr       jsr print_2_char
+0001F3r 2  C8             iny
+0001F4r 2  4C rr rr       jmp line2
+0001F7r 2               @exit:
+0001F7r 2  60             rts
+0001F8r 2               
+0001F8r 2               
+0001F8r 2               
+0001F8r 1               .include "../includes/getkey.inc"
+0001F8r 2               
+0001F8r 2                 .code
+00003Dr 2               
+00003Dr 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00003Dr 2               ;;
+00003Dr 2               ;;
+00003Dr 2               ;;      READ THE 4x4 keypad using  VIA_1 PORTA
+00003Dr 2               ;;
+00003Dr 2               ;;      Accumulator holds the ASCII value of the pressed key when it returns
+00003Dr 2               ;;
+00003Dr 2               
+00003Dr 2               get_key:
+00003Dr 2               readKeypad:
+00003Dr 2  A2 04          ldx #$04        ; Row 4 - counting down
+00003Fr 2  A0 80          ldy #%10000000  ;
+000041r 2               ScanRow:
+000041r 2  8C 01 60       sty PORTA_1
+000044r 2  AD 01 60       lda PORTA_1
+000047r 2  29 0F          and #$0F  ; mask off keypad input - only low 4 (keypad column) bits are read
+000049r 2  C9 00          cmp #$00
+00004Br 2  D0 0B          bne Row_Found   ; non-zero means a row output has been connected via a switch to a column input
+00004Dr 2  CA             dex             ; zero means it hasn't been found, so check next row down
+00004Er 2  98             tya
+00004Fr 2  4A             lsr
+000050r 2  A8             tay
+000051r 2  C9 08          cmp #%00001000
+000053r 2  D0 EC          bne ScanRow
+000055r 2  A9 FF          lda #$ff
+000057r 2  60             rts
+000058r 2               Row_Found:
+000058r 2  8E rr rr       stx TEMP ; store row
+00005Br 2  A0 FF          ldy #$ff
+00005Dr 2               FindCol:
+00005Dr 2  C8             iny
+00005Er 2  4A             lsr
+00005Fr 2  90 FC          bcc FindCol
+000061r 2  98             tya
+000062r 2  0A             asl
+000063r 2  0A             asl  ; col * 4
+000064r 2  18             clc
+000065r 2  6D rr rr       adc TEMP ; add row
+000068r 2  AA             tax
+000069r 2  BD rr rr       lda keypad_array,x
+00006Cr 2  60             rts
+00006Dr 2               
+00006Dr 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00006Dr 2               ;;
+00006Dr 2               ;;       key = <INDEX> ; pressing a key returns a 4-bit number
+00006Dr 2               ;;       calculated as (Column * 4 ) + Row, in the range
+00006Dr 2               ;;       1 - 16 which acts as an index to a lookup-table.
+00006Dr 2               ;;       The lookup table returns a byte value equal to the key's
+00006Dr 2               ;;       numerical value
+00006Dr 2               ;;       e.g.
+00006Dr 2               ;;       button 1 returns byte $01 / 00000001
+00006Dr 2               ;;       button F returns byte $0f / 00001111
+00006Dr 2               ;;    ____________________________________________________
+00006Dr 2               ;;   |     1 = <16> | 2 = <12> |    3 = <8> | A(10) = <4> |
+00006Dr 2               ;;   |______________|__________|____________|_____________|
+00006Dr 2               ;;   |     4 = <15> | 5 = <11> |    6 = <7> | B(11) = <3> |
+00006Dr 2               ;;   |______________|__________|____________|_____________|
+00006Dr 2               ;;   |     7 = <14> | 8 = <10> |    9 = <6> | C(12) = <2> |
+00006Dr 2               ;;   |______________|__________|____________|_____________|
+00006Dr 2               ;;   | E(14) = <13> | 0 = <9>  | F(15)= <5> | D(13) = <1> |
+00006Dr 2               ;;   |______________|__________|____________|_____________|
+00006Dr 2               ;;
+00006Dr 2               ;;            Button  ..   D    C    B    A    F    9    6    3    0    8    5    2    E    7    4    1
+00006Dr 2               ;;            <INDEX> 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16
+00006Dr 2  00 0D 0C 0B  keypad_array: .byte $00, $0D, $0C, $0B, $0A, $0F, $09, $06, $03, $00, $08, $05, $02, $0E, $07, $04, $01
+000071r 2  0A 0F 09 06  
+000075r 2  03 00 08 05  
+00007Er 2               
+00007Er 2               
+00007Er 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00007Er 2               ;;
+00007Er 2               ;;  set ROW keypad outputs high as a source for triggering interrupt when a key is pressed
+00007Er 2               ;;
+00007Er 2               ;;
+00007Er 2               scan:
+00007Er 2  A0 F0          ldy #%11110000
+000080r 2  8C 01 60       sty PORTA_1
+000083r 2  60             rts
+000084r 2               
+000084r 2               
+000084r 1               .include "../includes/functions.inc"
+000084r 2               
+000084r 2               
+000084r 2                 .code
+000084r 2               
+000084r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000084r 2               ;;
+000084r 2               ;;        Use T1 Timer in free-run mode to put pulse
+000084r 2               ;;        train on PB7 at rate determined by
+000084r 2               ;;        the chosen delay. Tone output is enabled by
+000084r 2               ;;        setting bit7 of ACR register and disabled by
+000084r 2               ;;        resetting it. This should really be done by or'ing
+000084r 2               ;;        %10000000 with the current value of ACR, to preserve
+000084r 2               ;;        the other bit-values. At the moment it's just a two
+000084r 2               ;;        state setting: 11000000 = Tone On, 01000000 = Tone off.
+000084r 2               ;;        bit6 of ACR sets T1 in free-run repeat mode and stays set
+000084r 2               ;;
+000084r 2               
+000084r 2               ;; T1 Timer values:
+000084r 2               
+000084r 2               ;; (Phi2 / (2 * f) ) - 2
+000084r 2               ;;
+000084r 2               ;;  Phi2 = 1MHz = 1,000,000
+000084r 2               ;;
+000084r 2               ;;    f  = count => Hex    => Counter Low : Counter High
+000084r 2               ;; =========================================================
+000084r 2               ;;  50Hz = 9998d => $270E  => T1CL = $0E  : T1CH = $27
+000084r 2               ;; 100Hz = 4998d => $1386  => T1CL = $86  : T1CH = $13
+000084r 2               ;; 200Hz = 2498d => $09C2  => T1CL = $C2  : T1CH = $09
+000084r 2               ;; 500Hz =  998d => $03E6  => T1CL = $E6  : T1CH = $03
+000084r 2               ;; 800Hz =  623d => $026F  => T1CL = $6F  : T1CH = $02
+000084r 2               ;; 1kHz  =  498d => $01F2  => T1CL = $F2  : T1CH = $01
+000084r 2               ;; 2kHz  =  248d => $00F8  => T1CL = $F8  : T1CH = $00
+000084r 2               ;;
+000084r 2               ;; USING VIA_2 for the beep Timer/output
+000084r 2               ;;
+000084r 2               ;; DO NOT CONFIGURE T1 TIMER settings in ioports.inc
+000084r 2               ;; They are set here whenever the beep is needed
+000084r 2               ;;
+000084r 2               
+000084r 2               count_50 = $270E
+000084r 2               count_100 = $1386
+000084r 2               count_200 = $09C2
+000084r 2               count_500 = $03E6
+000084r 2               count_800 = $026F
+000084r 2               count_1k = $01F2
+000084r 2               count_2k = $00F8
+000084r 2               
+000084r 2               ;;               50Hz, 100Hz, 200Hz, 500Hz, 800Hz, 1kHz, 2kHz
+000084r 2  0E 27 86 13  beepList: .word $270E, $1386, $09C2, $03E6, $026F, $01F2, $00F8
+000088r 2  C2 09 E6 03  
+00008Cr 2  6F 02 F2 01  
+000092r 2               
+000092r 2               ;; Load A with the required index and call beep_from_list
+000092r 2               
+000092r 2               beep_from_list:
+000092r 2               
+000092r 2  0A             asl
+000093r 2  A8             tay
+000094r 2  B9 rr rr       lda beepList,y
+000097r 2  8D 04 50       sta T1CL_2
+00009Ar 2  C8             iny
+00009Br 2  B9 rr rr       lda beepList,y
+00009Er 2  8D 05 50       sta T1CH_2
+0000A1r 2               
+0000A1r 2  A9 C0          lda #%11000000
+0000A3r 2  8D 0B 50       sta ACR_2
+0000A6r 2                 ;jsr beep_on
+0000A6r 2                 ; CONSIDER Change:
+0000A6r 2                 ;
+0000A6r 2                 ; jsr beep_on
+0000A6r 2                 ; rts
+0000A6r 2                 ;
+0000A6r 2                 ; becomes
+0000A6r 2                 ;
+0000A6r 2  4C rr rr       jmp beep_on
+0000A9r 2                 ;rts
+0000A9r 2               
+0000A9r 2               beep:
+0000A9r 2               
+0000A9r 2               ;; 800Hz keybeep
+0000A9r 2               
+0000A9r 2  A9 6F          lda #<count_800
+0000ABr 2  8D 04 50       sta T1CL_2
+0000AEr 2  A9 02          lda #>count_800
+0000B0r 2  8D 05 50       sta T1CH_2
+0000B3r 2                 ;jsr beep_on
+0000B3r 2                 ; CONSIDER Change:
+0000B3r 2                 ;
+0000B3r 2                 ; jsr beep_on
+0000B3r 2                 ; rts
+0000B3r 2                 ;
+0000B3r 2                 ; becomes
+0000B3r 2                 ;
+0000B3r 2  4C rr rr       jmp beep_on
+0000B6r 2               
+0000B6r 2                 ;rts
+0000B6r 2               
+0000B6r 2               beep_on:
+0000B6r 2  A5 rr            lda TICKS
+0000B8r 2  85 rr            sta BEEP_ON_TIME
+0000BAr 2  A9 C0            lda #%11000000
+0000BCr 2  8D 0B 50         sta ACR_2
+0000BFr 2  F7 rr            smb7 FLAGS
+0000C1r 2  60               rts
+0000C2r 2               
+0000C2r 2               beep_off:
+0000C2r 2  77 rr          rmb7 FLAGS
+0000C4r 2  A9 40          lda #%01000000
+0000C6r 2  8D 0B 50       sta ACR_2
+0000C9r 2  A9 0A          lda #$0A              ; restore standard 0.1s Beep length in case the caller had set a
+0000CBr 2  85 rr          sta BEEP_DELAY_TIME   ; new BEEP_DELAY_TIME
+0000CDr 2               
+0000CDr 2  60             rts
+0000CEr 2               
+0000CEr 2               beep_from_pointer:  ; put the 2 bytes for the required count into BEEP_POINTER and BEEP_POINTER + 1 and then
+0000CEr 2                                   ; call beep_from_pointer
+0000CEr 2               
+0000CEr 2               
+0000CEr 2  A5 rr          lda BEEP_POINTER
+0000D0r 2  8D 04 50       sta T1CL_2
+0000D3r 2  A5 rr          lda BEEP_POINTER + 1
+0000D5r 2  8D 05 50       sta T1CH_2
+0000D8r 2               
+0000D8r 2                 ;jsr beep_on
+0000D8r 2                 ; CONSIDER Change:
+0000D8r 2                 ;
+0000D8r 2                 ; jsr beep_on
+0000D8r 2                 ; rts
+0000D8r 2                 ;
+0000D8r 2                 ; becomes
+0000D8r 2                 ;
+0000D8r 2  4C rr rr       jmp beep_on
+0000DBr 2               
+0000DBr 2                 ;rts
+0000DBr 2               
+0000DBr 2               beep2: ; high/low beep for boot-up success notification
+0000DBr 2               
+0000DBr 2               ; 1kHz
+0000DBr 2  A9 F2          lda #<count_1k
+0000DDr 2  8D 04 50       sta T1CL_2
+0000E0r 2  A9 01          lda #>count_1k
+0000E2r 2  8D 05 50       sta T1CH_2
+0000E5r 2               
+0000E5r 2  A9 C0          lda #%11000000
+0000E7r 2  8D 0B 50       sta ACR_2
+0000EAr 2               
+0000EAr 2  20 rr rr       jsr beep_delay
+0000EDr 2               
+0000EDr 2               ; 800Hz
+0000EDr 2  A9 6F          lda #<count_800
+0000EFr 2  8D 04 50       sta T1CL_2
+0000F2r 2  A9 02          lda #>count_800
+0000F4r 2  8D 05 50       sta T1CH_2
+0000F7r 2               
+0000F7r 2  A9 40          lda #%01000000
+0000F9r 2  8D 0B 50       sta ACR_2
+0000FCr 2  60             rts
+0000FDr 2               
+0000FDr 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0000FDr 2               ;;
+0000FDr 2               ;;      basic loop delay to make the beep
+0000FDr 2               ;;
+0000FDr 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0000FDr 2               
+0000FDr 2               beep_delay:
+0000FDr 2  A2 FF          ldx #$ff
+0000FFr 2  A0 38          ldy #$38  ; <= set here to adjust the beep length
+000101r 2               @loop:
+000101r 2  EA             nop
+000102r 2  CA             dex
+000103r 2  D0 FC          bne @loop
+000105r 2  88             dey
+000106r 2  D0 F9          bne @loop
+000108r 2  60             rts
+000109r 2               
+000109r 2               
+000109r 2               
+000109r 2               
+000109r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000109r 2               ;;
+000109r 2               ;;          convert an 8-bit binary number from Accumulator, in range 00000000 -> 11111111 ($00 to $FF)
+000109r 2               ;;          to its HEX number encode as ASCII -  using a simple lookup table. Store each digit in RAM. Accumulator
+000109r 2               ;;          holds the last/low digit on return.
+000109r 2               ;;
+000109r 2               
+000109r 2               
+000109r 2               bintohex:
+000109r 2  48             pha
+00010Ar 2  4A             lsr
+00010Br 2  4A             lsr
+00010Cr 2  4A             lsr
+00010Dr 2  4A             lsr
+00010Er 2  AA             tax
+00010Fr 2  BD rr rr       lda hexascii,x
+000112r 2  8D rr rr       sta HI_DIGIT
+000115r 2  68             pla
+000116r 2  29 0F          and #$0f
+000118r 2  AA             tax
+000119r 2  BD rr rr       lda hexascii,x
+00011Cr 2  8D rr rr       sta LO_DIGIT
+00011Fr 2  60             rts
+000120r 2               
+000120r 2  30 31 32 33  hexascii: .byte "0123456789ABCDEF"
+000124r 2  34 35 36 37  
+000128r 2  38 39 41 42  
+000130r 2               
+000130r 2               
+000130r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000130r 2               ;;
+000130r 2               ;;    convert a binary (hex) value in Accumulator into
+000130r 2               ;;    its ASCII equivalent character in decimal 0-99 and print it
+000130r 2               ;;    this converts hex/binary numbers from the RTC into human readable
+000130r 2               ;;    decimal for display on clock
+000130r 2               
+000130r 2               
+000130r 2               bintoascii:
+000130r 2               
+000130r 2  C9 0A          cmp #10
+000132r 2  30 0F          bmi single_figure
+000134r 2  0A             asl
+000135r 2  AA             tax
+000136r 2  BD rr rr       lda binascii,x
+000139r 2  20 rr rr       jsr print_char
+00013Cr 2               
+00013Cr 2  E8             inx
+00013Dr 2               
+00013Dr 2  BD rr rr       lda binascii,x
+000140r 2                 ;jsr print_char
+000140r 2                 ; CONSIDER CHANGE
+000140r 2  4C rr rr       jmp print_char
+000143r 2                 ;rts
+000143r 2               
+000143r 2               single_figure:
+000143r 2  0A             asl
+000144r 2  AA             tax
+000145r 2  E8             inx
+000146r 2  BD rr rr       lda binascii,x
+000149r 2                 ;jsr print_char
+000149r 2                 ;CONSIDER CHANGE
+000149r 2  4C rr rr       jmp print_char
+00014Cr 2                 ;rts
+00014Cr 2               
+00014Cr 2               bintoascii_2:
+00014Cr 2               
+00014Cr 2  C9 0A          cmp #10
+00014Er 2  30 0F          bmi single_figure_2
+000150r 2  0A             asl
+000151r 2  AA             tax
+000152r 2  BD rr rr       lda binascii,x
+000155r 2  20 rr rr       jsr print_2_char
+000158r 2               
+000158r 2  E8             inx
+000159r 2               
+000159r 2  BD rr rr       lda binascii,x
+00015Cr 2                 ;jsr print_2_char
+00015Cr 2                 ; CONSIDER CHANGE
+00015Cr 2  4C rr rr       jmp print_2_char
+00015Fr 2                 ;rts
+00015Fr 2               
+00015Fr 2               single_figure_2:
+00015Fr 2  0A             asl
+000160r 2  AA             tax
+000161r 2  E8             inx
+000162r 2  BD rr rr       lda binascii,x
+000165r 2                 ;jsr print_2_char
+000165r 2                 ; CONSIDER CHANGE
+000165r 2  4C rr rr       jmp print_2_char
+000168r 2                 ;rts
+000168r 2               
+000168r 2               
+000168r 2  30 30 30 31  binascii: .byte "00010203040506070809"
+00016Cr 2  30 32 30 33  
+000170r 2  30 34 30 35  
+00017Cr 2  31 30 31 31            .byte "10111213141516171819"
+000180r 2  31 32 31 33  
+000184r 2  31 34 31 35  
+000190r 2  32 30 32 31            .byte "20212223242526272829"
+000194r 2  32 32 32 33  
+000198r 2  32 34 32 35  
+0001A4r 2  33 30 33 31            .byte "30313233343536373839"
+0001A8r 2  33 32 33 33  
+0001ACr 2  33 34 33 35  
+0001B8r 2  34 30 34 31            .byte "40414243444546474849"
+0001BCr 2  34 32 34 33  
+0001C0r 2  34 34 34 35  
+0001CCr 2  35 30 35 31            .byte "50515253545556575859"
+0001D0r 2  35 32 35 33  
+0001D4r 2  35 34 35 35  
+0001E0r 2  36 30 36 31            .byte "60616263646566676869"
+0001E4r 2  36 32 36 33  
+0001E8r 2  36 34 36 35  
+0001F4r 2  37 30 37 31            .byte "70717273747576777879"
+0001F8r 2  37 32 37 33  
+0001FCr 2  37 34 37 35  
+000208r 2  38 30 38 31            .byte "80818283848586878889"
+00020Cr 2  38 32 38 33  
+000210r 2  38 34 38 35  
+00021Cr 2  39 30 39 31            .byte "90919293949596979899"
+000220r 2  39 32 39 33  
+000224r 2  39 34 39 35  
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 1               .include "../includes/rtc.inc"
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 2                 .code
+000230r 2               
+000230r 2               
+000230r 2               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000230r 2               ;;
+000230r 2               ;;                          RTC / Jiffy Tick
+000230r 2               ;;
+000230r 2               
+000230r 2               
+000230r 2               
+000230r 2               rtc:
+000230r 2               
+000230r 2               
+000230r 2               ;;  RTC stores ticks at 10ms intervals into a 4-byte (32 bit) value
+000230r 2               ;;
+000230r 2               ;;  as each byte rolls over the next one is incremented
+000230r 2               ;;  on a tick that doesn't roll over the TIME OF DAY
+000230r 2               ;;  is updated
+000230r 2               
+000230r 2  E6 rr          inc TICKS
+000232r 2  D0 0A          bne inc_MET
+000234r 2  E6 rr          inc TICKS + 1
+000236r 2  D0 06          bne inc_MET
+000238r 2  E6 rr          inc TICKS + 2
+00023Ar 2  D0 02          bne inc_MET
+00023Cr 2  E6 rr          inc TICKS + 3
+00023Er 2               
+00023Er 2               ;;
+00023Er 2               ;;  Every time it's called we increment the "hundredths of a second" byte
+00023Er 2               ;;
+00023Er 2               ;;  When there's been 100 x 10ms (i.e. 1 second) we increment the seconds
+00023Er 2               ;;
+00023Er 2               ;; We keep the times in single digits, SECONDS, TEN_SECONDS, MINUTES,
+00023Er 2               ;; TEN_MINUTES etc.... to make it easy to display
+00023Er 2               ;; The values are stored in RAM as binary values, and need to be converted to
+00023Er 2               ;; ASCII characters when they are displayed on LCD
+00023Er 2               ;;
+00023Er 2               ;;  The basis of this routine comes from http://wilsonminesco.com/6502interrupts/#2.1
+00023Er 2               ;;
+00023Er 2               inc_MET:
+00023Er 2  E6 rr          inc CENTISEC
+000240r 2  A5 rr          lda CENTISEC
+000242r 2  C9 64          cmp #100
+000244r 2  30 40          bmi end_MET
+000246r 2  64 rr          stz CENTISEC
+000248r 2               
+000248r 2  E6 rr          inc SECONDS
+00024Ar 2  A5 rr          lda SECONDS
+00024Cr 2  C9 0A          cmp #10
+00024Er 2  30 36          bmi end_MET
+000250r 2  64 rr          stz SECONDS
+000252r 2  E6 rr          inc TEN_SECONDS
+000254r 2               
+000254r 2  A5 rr          lda TEN_SECONDS
+000256r 2  C9 06          cmp #6
+000258r 2  30 2C          bmi end_MET
+00025Ar 2  64 rr          stz TEN_SECONDS
+00025Cr 2               
+00025Cr 2  E6 rr          inc MINUTES
+00025Er 2  A5 rr          lda MINUTES
+000260r 2  C9 0A          cmp #10
+000262r 2  30 22          bmi end_MET
+000264r 2  64 rr          stz MINUTES
+000266r 2               
+000266r 2  E6 rr          inc TEN_MINUTES
+000268r 2  A5 rr          lda TEN_MINUTES
+00026Ar 2  C9 06          cmp #6
+00026Cr 2  30 18          bmi end_MET
+00026Er 2  64 rr          stz TEN_MINUTES
+000270r 2               
+000270r 2  E6 rr          inc HRS
+000272r 2  A5 rr          lda HRS
+000274r 2  C9 0A          cmp #10
+000276r 2  30 0E          bmi end_MET
+000278r 2  64 rr          stz HRS
+00027Ar 2               
+00027Ar 2  E6 rr          inc TEN_HRS
+00027Cr 2  A5 rr          lda TEN_HRS
+00027Er 2  C9 0A          cmp #10
+000280r 2  30 04          bmi end_MET
+000282r 2  64 rr          stz TEN_HRS
+000284r 2               
+000284r 2  E6 rr          inc HUNDRED_HRS
+000286r 2               
+000286r 2               end_MET:
+000286r 2  60             rts
+000287r 2               
+000287r 2               
+000287r 1               .include "../includes/spi_dev.inc"
+000287r 2               ;;;;;;;;;;;;;;;;;;;
+000287r 2               ;;
+000287r 2               ;;    Initial Bit-banging SPI transmit
+000287r 2               ;;    from Ben Eater's video
+000287r 2               ;;
+000287r 2               ;;    each TX bit is individually coded....
+000287r 2               ;;
+000287r 2               ;;    nothing is done to read from MISO yet
+000287r 2               
+000287r 2               
+000287r 2               .code
+000287r 2               
+000287r 2               
+000287r 2               SCK   = %00000001
+000287r 2               MOSI  = %00000010
+000287r 2               CS    = %00000100
+000287r 2               MISO  = %01000000
+000287r 2               
+000287r 2               
+000287r 2               
+000287r 2               send_spi:
+000287r 2               
+000287r 2  A9 04          lda #CS ; set CS high
+000289r 2  8D 01 50       sta PORTA_2
+00028Cr 2  A9 6F          lda #00000111
+00028Er 2  8D 03 50       sta DDRA_2
+000291r 2               
+000291r 2               ;; bitbang
+000291r 2               
+000291r 2               ;; for testing with PyBoard SPI Slave
+000291r 2               ;; send 2 ASCII-coded bytes
+000291r 2               
+000291r 2               ;; sending e.g. '3'  '3'
+000291r 2               ;;
+000291r 2               ;; i.e. send: $33 $33 (ASCII bytes for '3' '3')
+000291r 2               ;;
+000291r 2               ;; PyBoard replies with 'X' '6' (i.e. $58 $36)  and toggles LED #3
+000291r 2               ;;
+000291r 2               ;; sending '9' '1'
+000291r 2               ;;
+000291r 2               ;; PyBoard replies with 'X' ($58),  'B' ($42)
+000291r 2               ;;
+000291r 2               ;; the letter 'B' is ASCII $42/66d and comes from doubling the '9' = ASCII $39/57d. The "doubling" is
+000291r 2               ;; calculated by converting the ASCII value (57d) to its numerical value (9d) by subtracting
+000291r 2               ;; 48d. Then multiplying by 2 (2*9 = 18) and then converting back to ASCII by adding 48d (which is
+000291r 2               ;; only appropriate to convert a number to its ASCII character)
+000291r 2               ;;
+000291r 2               ;; ((57 - 48) * 2 + 48) but of course this doesn't work for numbers over 5..... you get an ASCII
+000291r 2               ;; letter, instead. Good enough for testing....
+000291r 2               
+000291r 2               ;;   and toggles LED #1 (RED)
+000291r 2               
+000291r 2               
+000291r 2               ;; send first byte $39 = ASCII '9'
+000291r 2               
+000291r 2               
+000291r 2  A9 00          lda #0
+000293r 2  8D 01 50       sta PORTA_2  ; sets CS low as well as MOSI and SCK
+000296r 2  A9 01          lda #SCK
+000298r 2  8D 01 50       sta PORTA_2  ; sets SCK high
+00029Br 2               
+00029Br 2  A9 00          lda #0
+00029Dr 2  8D 01 50       sta PORTA_2
+0002A0r 2  A9 01          lda #SCK
+0002A2r 2  8D 01 50       sta PORTA_2
+0002A5r 2               
+0002A5r 2  A9 02          lda #MOSI
+0002A7r 2  8D 01 50       sta PORTA_2
+0002AAr 2  A9 03          lda #(SCK | MOSI)
+0002ACr 2  8D 01 50       sta PORTA_2
+0002AFr 2               
+0002AFr 2               
+0002AFr 2  A9 02          lda #MOSI
+0002B1r 2  8D 01 50       sta PORTA_2
+0002B4r 2  A9 03          lda #(SCK | MOSI)
+0002B6r 2  8D 01 50       sta PORTA_2
+0002B9r 2               
+0002B9r 2               
+0002B9r 2                ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0002B9r 2               
+0002B9r 2               
+0002B9r 2               
+0002B9r 2  A9 02          lda #MOSI
+0002BBr 2  8D 01 50       sta PORTA_2
+0002BEr 2  A9 03          lda #(SCK | MOSI)
+0002C0r 2  8D 01 50       sta PORTA_2
+0002C3r 2               
+0002C3r 2  A9 00          lda #0
+0002C5r 2  8D 01 50       sta PORTA_2
+0002C8r 2  A9 01          lda #SCK
+0002CAr 2  8D 01 50       sta PORTA_2
+0002CDr 2               
+0002CDr 2  A9 00          lda #0
+0002CFr 2  8D 01 50       sta PORTA_2
+0002D2r 2  A9 01          lda #SCK
+0002D4r 2  8D 01 50       sta PORTA_2
+0002D7r 2               
+0002D7r 2  A9 02          lda #MOSI
+0002D9r 2  8D 01 50       sta PORTA_2
+0002DCr 2  A9 03          lda #(SCK | MOSI)
+0002DEr 2  8D 01 50       sta PORTA_2
+0002E1r 2               
+0002E1r 2               
+0002E1r 2               
+0002E1r 2               
+0002E1r 2               
+0002E1r 2               ;; send second byte $31 =  ASCII '1'
+0002E1r 2               
+0002E1r 2  A9 00        lda #0
+0002E3r 2  8D 01 50       sta PORTA_2
+0002E6r 2  A9 01          lda #SCK
+0002E8r 2  8D 01 50       sta PORTA_2
+0002EBr 2               
+0002EBr 2  A9 00          lda #0
+0002EDr 2  8D 01 50       sta PORTA_2
+0002F0r 2  A9 01          lda #SCK
+0002F2r 2  8D 01 50       sta PORTA_2
+0002F5r 2               
+0002F5r 2  A9 02          lda #MOSI
+0002F7r 2  8D 01 50       sta PORTA_2
+0002FAr 2  A9 03          lda #(SCK | MOSI)
+0002FCr 2  8D 01 50       sta PORTA_2
+0002FFr 2               
+0002FFr 2               
+0002FFr 2  A9 02          lda #MOSI
+000301r 2  8D 01 50       sta PORTA_2
+000304r 2  A9 03          lda #(SCK | MOSI)
+000306r 2  8D 01 50       sta PORTA_2
+000309r 2               
+000309r 2                ;;;;;;;;;;;;;;;;;;;;;
+000309r 2               
+000309r 2  A9 00         lda #0
+00030Br 2  8D 01 50       sta PORTA_2
+00030Er 2  A9 01          lda #SCK
+000310r 2  8D 01 50       sta PORTA_2
+000313r 2               
+000313r 2  A9 00          lda #0
+000315r 2  8D 01 50       sta PORTA_2
+000318r 2  A9 01          lda #SCK
+00031Ar 2  8D 01 50       sta PORTA_2
+00031Dr 2               
+00031Dr 2  A9 00          lda #0
+00031Fr 2  8D 01 50       sta PORTA_2
+000322r 2  A9 01          lda #SCK
+000324r 2  8D 01 50       sta PORTA_2
+000327r 2               
+000327r 2  A9 02          lda #MOSI
+000329r 2  8D 01 50       sta PORTA_2
+00032Cr 2  A9 03          lda #(SCK | MOSI)
+00032Er 2  8D 01 50       sta PORTA_2
+000331r 2               
+000331r 2               
+000331r 2  A9 04          lda #CS   ; everthing low except CS, which is now High until we're called again.
+000333r 2  8D 01 50       sta PORTA_2
+000336r 2               
+000336r 2  60             rts
+000337r 2               
+000337r 2               
+000337r 2               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000337r 1               ;;
+000337r 1               ;;         START HERE
+000337r 1               ;;
+000337r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000337r 1               
+000337r 1               .code
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               
+000337r 1               reset:
+000337r 1               
+000337r 1               
+000337r 1  A2 FF          ldx #$ff
+000339r 1  9A             txs
+00033Ar 1  58             cli      ; interrupts ON
+00033Br 1               
+00033Br 1                 ;; IOPORTS
+00033Br 1  20 rr rr       jsr via_1_init ; set-up VIA_1 for LCD/Keypad
+00033Er 1  20 rr rr       jsr via_2_init ; set-up VIA_2 for general I/O
+000341r 1  20 rr rr       jsr via_3_init ; set-up VIA_3 for general I/O
+000344r 1               
+000344r 1                 ;; LCD
+000344r 1  20 rr rr       jsr lcd_start ; set-up various features of lcd
+000347r 1  20 rr rr       jsr lcd_2_start ; set-up various features of lcd
+00034Ar 1               
+00034Ar 1               
+00034Ar 1               init_variables:
+00034Ar 1               
+00034Ar 1  64 rr          stz TICKS
+00034Cr 1  64 rr          stz TICKS + 1
+00034Er 1  64 rr          stz TICKS + 2
+000350r 1  64 rr          stz TICKS + 3
+000352r 1  64 rr          stz DUMP_POINTER
+000354r 1  64 rr          stz DUMP_POINTER + 1
+000356r 1  64 rr          stz MESSAGE_POINTER
+000358r 1  64 rr          stz MESSAGE_POINTER + 1
+00035Ar 1  A9 3F          lda #$3F
+00035Cr 1  85 rr          sta BEEP_POINTER
+00035Er 1  A9 03          lda #$03
+000360r 1  85 rr          sta BEEP_POINTER + 1
+000362r 1  A9 0A          lda #$0A              ; standard BEEP = 10 ticks, ~100mS
+000364r 1  85 rr          sta BEEP_DELAY_TIME
+000366r 1  64 rr          stz TOGGLE_TIME
+000368r 1  64 rr          stz CLOCK_LAST
+00036Ar 1  64 rr          stz LED2_LAST
+00036Cr 1  64 rr          stz SPI_LAST
+00036Er 1  64 rr          stz CENTISEC
+000370r 1  64 rr          stz FLAGS
+000372r 1  64 rr          stz SECONDS
+000374r 1  64 rr          stz TEN_SECONDS
+000376r 1  64 rr          stz MINUTES
+000378r 1  64 rr          stz HRS
+00037Ar 1  64 rr          stz TEN_HRS
+00037Cr 1  64 rr          stz TEN_MINUTES
+00037Er 1  64 rr          stz HUNDRED_HRS
+000380r 1  9C rr rr       stz TEMP
+000383r 1  9C rr rr       stz TEMP2
+000386r 1  9C rr rr       stz TENS
+000389r 1  64 rr          stz MEM_POINTER
+00038Br 1  64 rr          stz MEM_POINTER + 1
+00038Dr 1  9C rr rr       stz HI_DIGIT
+000390r 1  9C rr rr       stz LO_DIGIT
+000393r 1  A9 10          lda #$10
+000395r 1  85 rr          sta LAST_KIT
+000397r 1               
+000397r 1  A9 rr          lda #<title
+000399r 1  85 rr          sta MESSAGE_POINTER
+00039Br 1  A9 rr          lda #>title
+00039Dr 1  85 rr          sta MESSAGE_POINTER + 1
+00039Fr 1  20 rr rr       jsr print1
+0003A2r 1               
+0003A2r 1               
+0003A2r 1               memory_test:
+0003A2r 1               
+0003A2r 1  A9 rr          lda #<mem_start_msg
+0003A4r 1  85 rr          sta MESSAGE_POINTER
+0003A6r 1  A9 rr          lda #>mem_start_msg
+0003A8r 1  85 rr          sta MESSAGE_POINTER + 1
+0003AAr 1  20 rr rr       jsr print2
+0003ADr 1               
+0003ADr 1               ;; test then clear RAM between
+0003ADr 1               ;; $0200 - $3FFF - avoids the ZP and STACK areas
+0003ADr 1               
+0003ADr 1  A9 02          lda #$02            ; start at $0200
+0003AFr 1  85 rr          sta MEM_POINTER + 1
+0003B1r 1  A0 00          ldy #$00
+0003B3r 1               loop_ram:
+0003B3r 1  A9 AA          lda #$AA              ; test with 10101010
+0003B5r 1  91 rr          sta (MEM_POINTER),y   ; write test value to RAM
+0003B7r 1  A9 FF          lda #$FF              ; remove test value from A
+0003B9r 1  B1 rr          lda (MEM_POINTER),y   ; read RAM contents into A
+0003BBr 1  C9 AA          cmp #$AA              ; compare to expected value
+0003BDr 1  D0 4E          bne mem_fail_1
+0003BFr 1  A9 55          lda #$55              ; repeat test with 01010101
+0003C1r 1  91 rr          sta (MEM_POINTER),y
+0003C3r 1  A9 FF          lda #$FF
+0003C5r 1  B1 rr          lda (MEM_POINTER),y
+0003C7r 1  C9 55          cmp #$55
+0003C9r 1  D0 59          bne mem_fail_2
+0003CBr 1  A9 00          lda #$00              ; clear RAM to all zeros
+0003CDr 1  91 rr          sta (MEM_POINTER),y
+0003CFr 1  C8             iny
+0003D0r 1  F0 03          beq next_page
+0003D2r 1  4C rr rr       jmp loop_ram
+0003D5r 1               next_page:
+0003D5r 1  A5 rr          lda MEM_POINTER + 1
+0003D7r 1  1A             inc
+0003D8r 1  C9 40          cmp #$40
+0003DAr 1  F0 05          beq done_ram
+0003DCr 1  85 rr          sta MEM_POINTER + 1
+0003DEr 1  4C rr rr       jmp loop_ram
+0003E1r 1               
+0003E1r 1               done_ram:
+0003E1r 1               
+0003E1r 1  20 rr rr       jsr beep2
+0003E4r 1  A9 rr          lda #<mem_pass_msg
+0003E6r 1  85 rr          sta MESSAGE_POINTER
+0003E8r 1  A9 rr          lda #>mem_pass_msg
+0003EAr 1  85 rr          sta MESSAGE_POINTER + 1
+0003ECr 1                 ;jsr lcd_clear
+0003ECr 1  20 rr rr       jsr print3
+0003EFr 1  D7 rr          smb5 FLAGS
+0003F1r 1  A9 rr          lda #<start_msg
+0003F3r 1  85 rr          sta MESSAGE_POINTER
+0003F5r 1  A9 rr          lda #>start_msg
+0003F7r 1  85 rr          sta MESSAGE_POINTER + 1
+0003F9r 1  20 rr rr       jsr print4
+0003FCr 1  20 rr rr       jsr lcd_2_clear
+0003FFr 1  A9 rr          lda #<emt
+000401r 1  85 rr          sta MESSAGE_POINTER
+000403r 1  A9 rr          lda #>emt
+000405r 1  85 rr          sta MESSAGE_POINTER + 1
+000407r 1  20 rr rr       jsr print2_2
+00040Ar 1  4C rr rr       jmp user_ram
+00040Dr 1               
+00040Dr 1               mem_fail_1:
+00040Dr 1  20 rr rr       jsr beep
+000410r 1  20 rr rr       jsr beep2
+000413r 1  20 rr rr       jsr beep
+000416r 1  A9 rr          lda #<mem_fail_msg_1
+000418r 1  85 rr          sta MESSAGE_POINTER
+00041Ar 1  A9 rr          lda #>mem_fail_msg_1
+00041Cr 1  85 rr          sta MESSAGE_POINTER + 1
+00041Er 1  20 rr rr       jsr print3
+000421r 1  4C rr rr       jmp loop
+000424r 1               
+000424r 1               mem_fail_2:
+000424r 1  20 rr rr       jsr beep
+000427r 1  20 rr rr       jsr beep2
+00042Ar 1  20 rr rr       jsr beep
+00042Dr 1  A9 rr          lda #<mem_fail_msg_2
+00042Fr 1  85 rr          sta MESSAGE_POINTER
+000431r 1  A9 rr          lda #>mem_fail_msg_2
+000433r 1  85 rr          sta MESSAGE_POINTER + 1
+000435r 1  20 rr rr       jsr print3
+000438r 1  4C rr rr       jmp loop
+00043Br 1               
+00043Br 1               
+00043Br 1               
+00043Br 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00043Br 1               ;;
+00043Br 1               ;;  load the User RAM area $3F00 with the bytes
+00043Br 1               ;;  set in "userProg" - currently a small routine that
+00043Br 1               ;;  changed the contents of MESSAGE_POINTER (+1) to point
+00043Br 1               ;;  at $2000 instead. Then a string "userPrompt" is stored
+00043Br 1               ;;  at $2000. Running the user sub-routine (<shift>5) will now show
+00043Br 1               ;;  the "userPrompt" string on line4 of the main LCD
+00043Br 1               ;;  The user prog at $3F00 can be edited at will - it also has the
+00043Br 1               ;;  location of "print4" automatically inserted.
+00043Br 1               ;;
+00043Br 1               
+00043Br 1               ;; Put a sample program into "User Ram" at $3F00
+00043Br 1               user_ram:
+00043Br 1  A0 00          ldy #$00
+00043Dr 1               @loop:
+00043Dr 1  B9 rr rr       lda userProg,y
+000440r 1  F0 07          beq @exit
+000442r 1  99 00 3F       sta $3F00,y
+000445r 1  C8             iny
+000446r 1  4C rr rr       jmp @loop
+000449r 1               @exit:
+000449r 1               
+000449r 1               ;; Put a sample text string in "User Text" @ $2000
+000449r 1               prompt:
+000449r 1  A0 00          ldy #$00
+00044Br 1               @loop:
+00044Br 1  B9 rr rr       lda userPrompt,y
+00044Er 1  F0 07          beq @exit
+000450r 1  99 00 20       sta $2000,y
+000453r 1  C8             iny
+000454r 1  4C rr rr       jmp @loop
+000457r 1               @exit:
+000457r 1               
+000457r 1               
+000457r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000457r 1               ;;
+000457r 1               ;;                 Main Loop
+000457r 1               ;;
+000457r 1               
+000457r 1               
+000457r 1               loop:
+000457r 1               
+000457r 1  CB             wai
+000458r 1  20 rr rr       jsr check_flags
+00045Br 1  20 rr rr       jsr clock_via_3
+00045Er 1  4C rr rr       jmp loop
+000461r 1               
+000461r 1               
+000461r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000461r 1               ;;
+000461r 1               ;;                  FUNCTIONS
+000461r 1               ;;
+000461r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000461r 1               
+000461r 1               
+000461r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000461r 1               ;;
+000461r 1               ;;     FLAGS - for control of background tasks
+000461r 1               ;;
+000461r 1               ;;   bit7   | bit6   | bit5   |  bit4 | bit3 | bit2 | bit1 | bit0
+000461r 1               ;; =========|========|========|=======|======|======|======|===========
+000461r 1               ;;   beep   |        | clock  |       |      | spi  |      | mem block
+000461r 1               ;;   active |        | active |       |      |      |      | update view
+000461r 1               
+000461r 1               
+000461r 1               check_flags:
+000461r 1               
+000461r 1               flag_zero:
+000461r 1  0F rr 03       bbr0 FLAGS, flag_two
+000464r 1  20 rr rr       jsr update_block_address
+000467r 1               flag_two:
+000467r 1  2F rr 03       bbr2 FLAGS, flag_five
+00046Ar 1  20 rr rr       jsr spi_porta_2
+00046Dr 1               flag_five:
+00046Dr 1  5F rr 03       bbr5 FLAGS, flag_seven
+000470r 1  20 rr rr       jsr clock_time
+000473r 1               flag_seven:
+000473r 1  7F rr 03       bbr7 FLAGS, flag_three
+000476r 1  20 rr rr       jsr check_beep
+000479r 1               flag_three:
+000479r 1               
+000479r 1  60             rts
+00047Ar 1               
+00047Ar 1               ;;;;;;;;;;
+00047Ar 1               ;;;;;;;;;;
+00047Ar 1               ;;;
+00047Ar 1               check_beep:
+00047Ar 1  38             sec
+00047Br 1  A5 rr          lda TICKS
+00047Dr 1  E5 rr          sbc BEEP_ON_TIME
+00047Fr 1  C5 rr          cmp BEEP_DELAY_TIME
+000481r 1  90 03          bcc @exit
+000483r 1  20 rr rr       jsr beep_off
+000486r 1               @exit:
+000486r 1  60             rts
+000487r 1               
+000487r 1               spi_porta_2:
+000487r 1               
+000487r 1  38             sec
+000488r 1  A5 rr          lda TICKS
+00048Ar 1  E5 rr          sbc SPI_LAST
+00048Cr 1  C9 0A          cmp #10 ; send SPI data 10 times per second - PyBoard toggles LED on/off at 5Hz
+00048Er 1  90 07          bcc exit_spi_porta_2
+000490r 1  20 rr rr       jsr send_spi
+000493r 1               @exit:
+000493r 1  A5 rr          lda TICKS
+000495r 1  85 rr          sta SPI_LAST
+000497r 1               exit_spi_porta_2:
+000497r 1  60             rts
+000498r 1               
+000498r 1               clock_via_3:
+000498r 1  38             sec
+000499r 1  A5 rr          lda TICKS
+00049Br 1  E5 rr          sbc LED2_LAST
+00049Dr 1  C9 64          cmp #100
+00049Fr 1  90 0F          bcc exit_clock_via_3
+0004A1r 1  A5 rr          lda TEN_SECONDS
+0004A3r 1  0A             asl
+0004A4r 1  0A             asl
+0004A5r 1  0A             asl
+0004A6r 1  0A             asl
+0004A7r 1  05 rr          ora SECONDS
+0004A9r 1  8D 00 48       sta PORTB_3
+0004ACr 1               
+0004ACr 1                 ;lda TEN_MINUTES
+0004ACr 1                 ;asl
+0004ACr 1                 ;asl
+0004ACr 1                 ;asl
+0004ACr 1                 ;asl
+0004ACr 1                 ;ora MINUTES
+0004ACr 1                 ;sta PORTB_2
+0004ACr 1               
+0004ACr 1               @exit:
+0004ACr 1  A5 rr          lda TICKS
+0004AEr 1  85 rr          sta LED2_LAST
+0004B0r 1               exit_clock_via_3:
+0004B0r 1  60             rts
+0004B1r 1               
+0004B1r 1               
+0004B1r 1               update_block_address:
+0004B1r 1  20 rr rr       jsr lcd_line_2
+0004B4r 1  38             sec
+0004B5r 1  A5 rr          lda TICKS
+0004B7r 1  E5 rr          sbc TOGGLE_TIME
+0004B9r 1  C9 64          cmp #$64
+0004BBr 1  90 07          bcc @exit
+0004BDr 1  20 rr rr       jsr block_address
+0004C0r 1  A5 rr          lda TICKS
+0004C2r 1  85 rr          sta TOGGLE_TIME
+0004C4r 1               @exit:
+0004C4r 1  60             rts
+0004C5r 1               
+0004C5r 1               clock_time:
+0004C5r 1  38             sec
+0004C6r 1  A5 rr          lda TICKS
+0004C8r 1  E5 rr          sbc CLOCK_LAST
+0004CAr 1  C9 32          cmp #50
+0004CCr 1  90 3C          bcc @exit
+0004CEr 1  20 rr rr       jsr lcd_2_cursor_off
+0004D1r 1  20 rr rr       jsr lcd_2_line_1
+0004D4r 1  A5 rr          lda HUNDRED_HRS
+0004D6r 1  20 rr rr       jsr bintoascii_2
+0004D9r 1  A5 rr          lda TEN_HRS
+0004DBr 1  20 rr rr       jsr bintoascii_2
+0004DEr 1  A5 rr          lda HRS
+0004E0r 1  20 rr rr       jsr bintoascii_2
+0004E3r 1  A9 3A          lda #':'
+0004E5r 1  20 rr rr       jsr print_2_char
+0004E8r 1  A5 rr          lda TEN_MINUTES
+0004EAr 1  20 rr rr       jsr bintoascii_2
+0004EDr 1  A5 rr          lda MINUTES
+0004EFr 1  20 rr rr       jsr bintoascii_2
+0004F2r 1  A9 3A          lda #':'
+0004F4r 1  20 rr rr       jsr print_2_char
+0004F7r 1  A5 rr          lda TEN_SECONDS
+0004F9r 1  20 rr rr       jsr bintoascii_2
+0004FCr 1  A5 rr          lda SECONDS
+0004FEr 1  20 rr rr       jsr bintoascii_2
+000501r 1  A9 20          lda #' '
+000503r 1  20 rr rr       jsr print_2_char
+000506r 1  A5 rr          lda TICKS
+000508r 1  85 rr          sta CLOCK_LAST
+00050Ar 1               @exit:
+00050Ar 1  60             rts
+00050Br 1               
+00050Br 1               
+00050Br 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00050Br 1               ;;
+00050Br 1               ;;      update screen when new memory location is selected
+00050Br 1               ;;
+00050Br 1               ;;
+00050Br 1               new_address:
+00050Br 1  20 rr rr       jsr lcd_clear
+00050Er 1  20 rr rr       jsr lcd_cursor_on
+000511r 1  A9 rr          lda #<new_address_msg
+000513r 1  85 rr          sta MESSAGE_POINTER
+000515r 1  A9 rr          lda #>new_address_msg
+000517r 1  85 rr          sta MESSAGE_POINTER + 1
+000519r 1  20 rr rr       jsr print1
+00051Cr 1  20 rr rr       jsr lcd_line_2
+00051Fr 1               print_address:
+00051Fr 1  A9 24          lda #'$'
+000521r 1  20 rr rr       jsr print_char
+000524r 1  A5 rr          lda DUMP_POINTER + 1
+000526r 1  20 rr rr       jsr bintohex
+000529r 1  AD rr rr       lda HI_DIGIT
+00052Cr 1  20 rr rr       jsr print_char
+00052Fr 1  AD rr rr       lda LO_DIGIT
+000532r 1  20 rr rr       jsr print_char
+000535r 1  A5 rr          lda DUMP_POINTER
+000537r 1  20 rr rr       jsr bintohex
+00053Ar 1  AD rr rr       lda HI_DIGIT
+00053Dr 1  20 rr rr       jsr print_char
+000540r 1  AD rr rr       lda LO_DIGIT
+000543r 1  20 rr rr       jsr print_char
+000546r 1  A9 20          lda #' '
+000548r 1  20 rr rr       jsr print_char
+00054Br 1  A0 00          ldy #$00
+00054Dr 1  B1 rr          lda (DUMP_POINTER),y
+00054Fr 1  20 rr rr       jsr bintohex
+000552r 1  AD rr rr       lda HI_DIGIT
+000555r 1  20 rr rr       jsr print_char
+000558r 1  AD rr rr       lda LO_DIGIT
+00055Br 1  20 rr rr       jsr print_char
+00055Er 1  A9 20          lda #' '
+000560r 1  20 rr rr       jsr print_char
+000563r 1  B1 rr          lda (DUMP_POINTER),y
+000565r 1  20 rr rr       jsr print_char
+000568r 1  A9 rr          lda #<splash
+00056Ar 1  85 rr          sta MESSAGE_POINTER
+00056Cr 1  A9 rr          lda #>splash
+00056Er 1  85 rr          sta MESSAGE_POINTER + 1
+000570r 1  20 rr rr       jsr print3   ; add cursor after re-writing the address/data line
+000573r 1  60             rts
+000574r 1               
+000574r 1               
+000574r 1               
+000574r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000574r 1               ;;
+000574r 1               ;;      display 8 bytes of data for a "block" of memory
+000574r 1               ;;
+000574r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000574r 1               
+000574r 1               block_address:
+000574r 1               
+000574r 1  20 rr rr       jsr lcd_clear
+000577r 1  20 rr rr       jsr lcd_cursor_off
+00057Ar 1  A9 rr          lda #<block_address_msg
+00057Cr 1  85 rr          sta MESSAGE_POINTER
+00057Er 1  A9 rr          lda #>block_address_msg
+000580r 1  85 rr          sta MESSAGE_POINTER + 1
+000582r 1  20 rr rr       jsr print1
+000585r 1  20 rr rr       jsr lcd_line_2
+000588r 1  A0 00          ldy #$00
+00058Ar 1  A9 24          lda #'$'
+00058Cr 1  20 rr rr       jsr print_char
+00058Fr 1  A5 rr          lda DUMP_POINTER + 1
+000591r 1  20 rr rr       jsr bintohex
+000594r 1  AD rr rr       lda HI_DIGIT
+000597r 1  20 rr rr       jsr print_char
+00059Ar 1  AD rr rr       lda LO_DIGIT
+00059Dr 1  20 rr rr       jsr print_char
+0005A0r 1  A5 rr          lda DUMP_POINTER
+0005A2r 1  20 rr rr       jsr bintohex
+0005A5r 1  AD rr rr       lda HI_DIGIT
+0005A8r 1  20 rr rr       jsr print_char
+0005ABr 1  AD rr rr       lda LO_DIGIT
+0005AEr 1  20 rr rr       jsr print_char
+0005B1r 1  20 rr rr       jsr lcd_line_3
+0005B4r 1               loop1:
+0005B4r 1  B1 rr          lda (DUMP_POINTER),y
+0005B6r 1  20 rr rr       jsr bintohex
+0005B9r 1  AD rr rr       lda HI_DIGIT
+0005BCr 1  20 rr rr       jsr print_char
+0005BFr 1  AD rr rr       lda LO_DIGIT
+0005C2r 1  20 rr rr       jsr print_char
+0005C5r 1  B1 rr          lda (DUMP_POINTER),y
+0005C7r 1  C8             iny
+0005C8r 1  C0 08          cpy #$08
+0005CAr 1  D0 E8          bne loop1
+0005CCr 1  A9 20          lda #' '
+0005CEr 1  20 rr rr       jsr print_char
+0005D1r 1  A9 48          lda #'H'
+0005D3r 1  20 rr rr       jsr print_char
+0005D6r 1  A9 65          lda #'e'
+0005D8r 1  20 rr rr       jsr print_char
+0005DBr 1  A9 78          lda #'x'
+0005DDr 1  20 rr rr       jsr print_char
+0005E0r 1  20 rr rr       jsr lcd_line_4
+0005E3r 1  A0 00          ldy #$00
+0005E5r 1               loop2:
+0005E5r 1  A9 20          lda #$20
+0005E7r 1  20 rr rr       jsr print_char
+0005EAr 1  B1 rr          lda (DUMP_POINTER),y
+0005ECr 1  20 rr rr       jsr print_char
+0005EFr 1  C8             iny
+0005F0r 1  C0 08          cpy #$08
+0005F2r 1  D0 F1          bne loop2
+0005F4r 1  A9 20          lda #' '
+0005F6r 1  20 rr rr       jsr print_char
+0005F9r 1  A9 43          lda #'C'
+0005FBr 1  20 rr rr       jsr print_char
+0005FEr 1  A9 68          lda #'h'
+000600r 1  20 rr rr       jsr print_char
+000603r 1  A9 72          lda #'r'
+000605r 1  20 rr rr       jsr print_char
+000608r 1  60             rts
+000609r 1               
+000609r 1               
+000609r 1               
+000609r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000609r 1               ;;
+000609r 1               ;;      Monitor function - decrement the selected address
+000609r 1               ;;
+000609r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000609r 1               
+000609r 1               decrement_address:
+000609r 1               
+000609r 1  38             sec
+00060Ar 1  A5 rr          lda DUMP_POINTER
+00060Cr 1  E9 01          sbc #$01
+00060Er 1  85 rr          sta DUMP_POINTER
+000610r 1  8D rr rr       sta BYTE
+000613r 1  A5 rr          lda DUMP_POINTER + 1
+000615r 1  E9 00          sbc #$00
+000617r 1  85 rr          sta DUMP_POINTER + 1
+000619r 1  8D rr rr       sta BYTE + 1
+00061Cr 1  60             rts
+00061Dr 1               
+00061Dr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00061Dr 1               ;;
+00061Dr 1               ;;      Monitor function - increment the selected address
+00061Dr 1               ;;
+00061Dr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00061Dr 1               
+00061Dr 1               increment_address:
+00061Dr 1               
+00061Dr 1  18             clc
+00061Er 1  A5 rr          lda DUMP_POINTER
+000620r 1  69 01          adc #$01
+000622r 1  85 rr          sta DUMP_POINTER
+000624r 1  8D rr rr       sta BYTE
+000627r 1  A5 rr          lda DUMP_POINTER + 1
+000629r 1  69 00          adc #$00
+00062Br 1  85 rr          sta DUMP_POINTER + 1
+00062Dr 1  8D rr rr       sta BYTE + 1
+000630r 1  60             rts
+000631r 1               
+000631r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000631r 1               ;;
+000631r 1               ;;      Monitor function - increment the selected block of  addresses by 8
+000631r 1               ;;
+000631r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000631r 1               
+000631r 1               increment_block:
+000631r 1               
+000631r 1  18             clc
+000632r 1  A5 rr          lda DUMP_POINTER
+000634r 1  69 08          adc #$08
+000636r 1  85 rr          sta DUMP_POINTER
+000638r 1  8D rr rr       sta BYTE
+00063Br 1  A5 rr          lda DUMP_POINTER + 1
+00063Dr 1  69 00          adc #$00
+00063Fr 1  85 rr          sta DUMP_POINTER + 1
+000641r 1  8D rr rr       sta BYTE + 1
+000644r 1  60             rts
+000645r 1               
+000645r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000645r 1               ;;
+000645r 1               ;;      Monitor function - decrement the selected block of  addresses by 8
+000645r 1               ;;
+000645r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000645r 1               
+000645r 1               decrement_block:
+000645r 1               
+000645r 1  38             sec
+000646r 1  A5 rr          lda DUMP_POINTER
+000648r 1  E9 08          sbc #$08
+00064Ar 1  85 rr          sta DUMP_POINTER
+00064Cr 1  8D rr rr       sta BYTE
+00064Fr 1  A5 rr          lda DUMP_POINTER + 1
+000651r 1  E9 00          sbc #$00
+000653r 1  85 rr          sta DUMP_POINTER + 1
+000655r 1  8D rr rr       sta BYTE + 1
+000658r 1  60             rts
+000659r 1               
+000659r 1               
+000659r 1               
+000659r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000659r 1               ;;
+000659r 1               ;; use last 4 key presses (as hex bytes) to fill two BYTES
+000659r 1               ;;
+000659r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000659r 1               
+000659r 1               keys_byte:
+000659r 1               
+000659r 1  AD rr rr       lda KEY_PRESS + 1
+00065Cr 1  0A             asl
+00065Dr 1  0A             asl
+00065Er 1  0A             asl
+00065Fr 1  0A             asl
+000660r 1  8D rr rr       sta BYTE
+000663r 1  AD rr rr       lda KEY_PRESS
+000666r 1  0D rr rr       ora BYTE
+000669r 1  8D rr rr       sta BYTE
+00066Cr 1  AD rr rr       lda KEY_PRESS + 3
+00066Fr 1  0A             asl
+000670r 1  0A             asl
+000671r 1  0A             asl
+000672r 1  0A             asl
+000673r 1  8D rr rr       sta BYTE + 1
+000676r 1  AD rr rr       lda KEY_PRESS + 2
+000679r 1  0D rr rr       ora BYTE + 1
+00067Cr 1  8D rr rr       sta BYTE + 1
+00067Fr 1  60             rts
+000680r 1               
+000680r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000680r 1               ;;
+000680r 1               ;;    toggle the display/update of Clock on each appropriate keypress
+000680r 1               ;;
+000680r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000680r 1               
+000680r 1               show_clock:
+000680r 1               
+000680r 1  DF rr 10       bbs5 FLAGS, reset_bit5
+000683r 1  D7 rr          smb5 FLAGS
+000685r 1  A9 rr          lda #<emt
+000687r 1  85 rr          sta MESSAGE_POINTER
+000689r 1  A9 rr          lda #>emt
+00068Br 1  85 rr          sta MESSAGE_POINTER + 1
+00068Dr 1  20 rr rr       jsr print2_2
+000690r 1  4C rr rr       jmp exit_show_clock
+000693r 1               reset_bit5:
+000693r 1  57 rr          rmb5 FLAGS
+000695r 1  A9 rr          lda #<pause_msg
+000697r 1  85 rr          sta MESSAGE_POINTER
+000699r 1  A9 rr          lda #>pause_msg
+00069Br 1  85 rr          sta MESSAGE_POINTER + 1
+00069Dr 1  20 rr rr       jsr print2_2
+0006A0r 1               
+0006A0r 1               exit_show_clock:
+0006A0r 1  60             rts
+0006A1r 1               
+0006A1r 1               
+0006A1r 1               
+0006A1r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006A1r 1               ;;
+0006A1r 1               ;;    toggle the automatic update view of the "8-byte memory block"
+0006A1r 1               ;;
+0006A1r 1               
+0006A1r 1               show_block:
+0006A1r 1               
+0006A1r 1  8F rr 05       bbs0 FLAGS, reset_bit0
+0006A4r 1  87 rr          smb0 FLAGS
+0006A6r 1  4C rr rr       jmp exit_show_block
+0006A9r 1               reset_bit0:
+0006A9r 1  07 rr          rmb0 FLAGS
+0006ABr 1               exit_show_block:
+0006ABr 1  60             rts
+0006ACr 1               
+0006ACr 1               
+0006ACr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006ACr 1               ;;
+0006ACr 1               ;;     toggle the scanning LED routine on VIA_3 Port B
+0006ACr 1               ;;
+0006ACr 1               
+0006ACr 1               update_spi:
+0006ACr 1               
+0006ACr 1  AF rr 05       bbs2 FLAGS, reset_bit2
+0006AFr 1  A7 rr          smb2 FLAGS
+0006B1r 1  4C rr rr       jmp exit_update_spi
+0006B4r 1               reset_bit2:
+0006B4r 1  27 rr          rmb2 FLAGS
+0006B6r 1               exit_update_spi:
+0006B6r 1  60             rts
+0006B7r 1               
+0006B7r 1               
+0006B7r 1               
+0006B7r 1               
+0006B7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006B7r 1               ;;
+0006B7r 1               ;;                     INTERRUPT HANDLERS
+0006B7r 1               ;;
+0006B7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006B7r 1               
+0006B7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006B7r 1               ;;
+0006B7r 1               ;;         reset & restart timer
+0006B7r 1               ;;
+0006B7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006B7r 1               
+0006B7r 1               
+0006B7r 1               reset_met:
+0006B7r 1  64 rr          stz HUNDRED_HRS
+0006B9r 1  64 rr          stz TEN_HRS
+0006BBr 1  64 rr          stz TEN_MINUTES
+0006BDr 1  64 rr          stz TEN_SECONDS
+0006BFr 1  64 rr          stz HRS
+0006C1r 1  64 rr          stz MINUTES
+0006C3r 1  64 rr          stz SECONDS
+0006C5r 1  60             rts
+0006C6r 1               
+0006C6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006C6r 1               ;;
+0006C6r 1               ;;                CB : TEST FUNCTIONS
+0006C6r 1               ;;
+0006C6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006C6r 1               cb1_handler:
+0006C6r 1               
+0006C6r 1                 ;lda #$04
+0006C6r 1  A9 05          lda #$05
+0006C8r 1  85 rr          sta BEEP_DELAY_TIME
+0006CAr 1                 ;jsr beep_from_pointer
+0006CAr 1               
+0006CAr 1                 ; CONSIDER Change:
+0006CAr 1                 ;
+0006CAr 1                 ; jsr beep_from_pointer
+0006CAr 1                 ; rts
+0006CAr 1                 ;
+0006CAr 1                 ; becomes
+0006CAr 1                 ;
+0006CAr 1  4C rr rr       jmp beep_from_pointer
+0006CDr 1               
+0006CDr 1                 ;rts
+0006CDr 1               
+0006CDr 1               cb2_handler:
+0006CDr 1  A9 14          lda #$14
+0006CFr 1  85 rr          sta BEEP_DELAY_TIME
+0006D1r 1  A9 02          lda #$02 ; tone # = 100Hz
+0006D3r 1                 ;jsr beep_from_list
+0006D3r 1                 ; CONSIDER Change:
+0006D3r 1                 ;
+0006D3r 1                 ; jsr beep_from-list
+0006D3r 1                 ; rts
+0006D3r 1                 ;
+0006D3r 1                 ; becomes
+0006D3r 1                 ;
+0006D3r 1  4C rr rr       jmp beep_from_list
+0006D6r 1               
+0006D6r 1                 ;rts
+0006D6r 1               
+0006D6r 1               
+0006D6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006D6r 1               ;;
+0006D6r 1               ;;                    MONITOR / KEYPAD
+0006D6r 1               ;;
+0006D6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006D6r 1               
+0006D6r 1               keypad_handler:
+0006D6r 1               
+0006D6r 1  20 rr rr       jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
+0006D9r 1  8D rr rr       sta INKEY       ; put the byte value of input into RAM ( $00 )
+0006DCr 1  AD 00 60       lda PORTB_1       ; check for SHIFT/INSTRUCTION button, 0=pressed, 1=not pressed
+0006DFr 1  29 80          and #%10000000    ; zero (eq) when button pressed -> check_keypress, otherwise it's not zero, jmp to handle_new_char
+0006E1r 1  F0 03          beq check_keypress ; done this way to get around the limit in size of branch jumps....
+0006E3r 1  4C rr rr       jmp handle_new_char
+0006E6r 1               
+0006E6r 1               check_keypress:
+0006E6r 1               
+0006E6r 1  AD rr rr       lda INKEY
+0006E9r 1               
+0006E9r 1               ; choose action of "SHIFTed" key-press
+0006E9r 1               
+0006E9r 1               check_a:
+0006E9r 1               
+0006E9r 1  C9 0A          cmp #$0A
+0006EBr 1                 ; move up one memory address and display contents
+0006EBr 1  D0 09          bne check_b
+0006EDr 1  20 rr rr       jsr increment_address
+0006F0r 1  20 rr rr       jsr new_address
+0006F3r 1  4C rr rr       jmp exit_key_irq
+0006F6r 1               
+0006F6r 1               check_b:
+0006F6r 1               
+0006F6r 1  C9 0B          cmp #$0B
+0006F8r 1                 ; move down one memory address and display contents
+0006F8r 1  D0 09          bne check_c
+0006FAr 1  20 rr rr       jsr decrement_address
+0006FDr 1  20 rr rr       jsr new_address
+000700r 1  4C rr rr       jmp exit_key_irq
+000703r 1               
+000703r 1               check_c:
+000703r 1               
+000703r 1  C9 0C          cmp #$0C
+000705r 1                 ; return to MONITOR
+000705r 1  D0 13          bne check_d
+000707r 1  07 rr          rmb0 FLAGS
+000709r 1  20 rr rr       jsr lcd_clear
+00070Cr 1  A9 rr          lda #<splash
+00070Er 1  85 rr          sta MESSAGE_POINTER
+000710r 1  A9 rr          lda #>splash
+000712r 1  85 rr          sta MESSAGE_POINTER + 1
+000714r 1  20 rr rr       jsr new_address
+000717r 1  4C rr rr       jmp exit_key_irq
+00071Ar 1               
+00071Ar 1               check_d:
+00071Ar 1               
+00071Ar 1  C9 0D          cmp #$0D
+00071Cr 1                 ; move monitor to entered 4-digit memory address
+00071Cr 1  D0 10          bne check_e
+00071Er 1  AD rr rr       lda BYTE
+000721r 1  85 rr          sta DUMP_POINTER
+000723r 1  AD rr rr       lda BYTE + 1
+000726r 1  85 rr          sta DUMP_POINTER + 1
+000728r 1  20 rr rr       jsr new_address
+00072Br 1  4C rr rr       jmp exit_key_irq
+00072Er 1               
+00072Er 1               check_e:
+00072Er 1               
+00072Er 1  C9 0E          cmp #$0E
+000730r 1                 ; insert (POKE) byte of data in to current memory address, then increment to next address
+000730r 1  D0 10          bne check_f
+000732r 1  AD rr rr       lda BYTE
+000735r 1  A0 00          ldy #$00
+000737r 1  91 rr          sta (DUMP_POINTER),y
+000739r 1  20 rr rr       jsr new_address
+00073Cr 1  20 rr rr       jsr beep
+00073Fr 1  4C rr rr       jmp exit_key_irq
+000742r 1               
+000742r 1               check_f:
+000742r 1               
+000742r 1  C9 0F          cmp #$0F
+000744r 1                 ; show 8-byte wide block of memory
+000744r 1  D0 12          bne check_1
+000746r 1  A0 00          ldy #$00
+000748r 1  AD rr rr       lda BYTE
+00074Br 1  85 rr          sta DUMP_POINTER
+00074Dr 1  AD rr rr       lda BYTE + 1
+000750r 1  85 rr          sta DUMP_POINTER + 1
+000752r 1  20 rr rr       jsr block_address
+000755r 1  4C rr rr       jmp exit_key_irq
+000758r 1               
+000758r 1               check_1:
+000758r 1               
+000758r 1  C9 01          cmp #$01
+00075Ar 1                 ; pause time display (clock still running)
+00075Ar 1  D0 09          bne check_2
+00075Cr 1  20 rr rr       jsr beep
+00075Fr 1  20 rr rr       jsr show_clock
+000762r 1  4C rr rr       jmp exit_key_irq
+000765r 1               
+000765r 1               check_2:
+000765r 1               
+000765r 1  C9 02          cmp #$02
+000767r 1                 ; reset_clock
+000767r 1  D0 09          bne check_3
+000769r 1  20 rr rr       jsr beep
+00076Cr 1  20 rr rr       jsr reset_met
+00076Fr 1  4C rr rr       jmp exit_key_irq
+000772r 1               
+000772r 1               check_3:
+000772r 1               
+000772r 1  C9 03          cmp #$03
+000774r 1  D0 0B          bne check_6
+000776r 1  A0 00          ldy #$00
+000778r 1  20 rr rr       jsr increment_block
+00077Br 1  20 rr rr       jsr block_address
+00077Er 1  4C rr rr       jmp exit_key_irq
+000781r 1               
+000781r 1               check_6:
+000781r 1               
+000781r 1  C9 06          cmp #$06
+000783r 1  D0 0B          bne check_9
+000785r 1  A0 00          ldy #$00
+000787r 1  20 rr rr       jsr decrement_block
+00078Ar 1  20 rr rr       jsr block_address
+00078Dr 1  4C rr rr       jmp exit_key_irq
+000790r 1               
+000790r 1               check_9:
+000790r 1               
+000790r 1  C9 09          cmp #$09
+000792r 1  D0 06          bne check_4
+000794r 1  20 rr rr       jsr show_block
+000797r 1  4C rr rr       jmp exit_key_irq
+00079Ar 1               
+00079Ar 1               check_4:
+00079Ar 1               
+00079Ar 1  C9 04          cmp #$04
+00079Cr 1  D0 09          bne check_5
+00079Er 1  20 rr rr       jsr beep
+0007A1r 1               
+0007A1r 1  20 rr rr       jsr update_spi
+0007A4r 1  4C rr rr       jmp exit_key_irq
+0007A7r 1               
+0007A7r 1               check_5:
+0007A7r 1               
+0007A7r 1  C9 05          cmp #$05
+0007A9r 1  D0 2A          bne exit_key_irq
+0007ABr 1  20 rr rr       jsr beep
+0007AEr 1  20 00 3F       jsr $3F00
+0007B1r 1  4C rr rr       jmp exit_key_irq
+0007B4r 1               
+0007B4r 1               
+0007B4r 1               handle_new_char:
+0007B4r 1               
+0007B4r 1  AD rr rr       lda KEY_PRESS + 2
+0007B7r 1  8D rr rr       sta KEY_PRESS + 3
+0007BAr 1  AD rr rr       lda KEY_PRESS + 1
+0007BDr 1  8D rr rr       sta KEY_PRESS + 2
+0007C0r 1  AD rr rr       lda KEY_PRESS
+0007C3r 1  8D rr rr       sta KEY_PRESS + 1
+0007C6r 1  AD rr rr       lda INKEY       ; get the new keypress value and...
+0007C9r 1  8D rr rr       sta KEY_PRESS
+0007CCr 1  20 rr rr       jsr bintohex
+0007CFr 1  20 rr rr       jsr print_char  ; and print it on LCD
+0007D2r 1  20 rr rr       jsr keys_byte
+0007D5r 1               
+0007D5r 1               exit_key_irq:
+0007D5r 1               
+0007D5r 1                 ;jsr scan  ; re-enable keypad
+0007D5r 1                 ; CONSIDER Change:
+0007D5r 1                 ;
+0007D5r 1                 ; jsr scan
+0007D5r 1                 ; rts
+0007D5r 1                 ;
+0007D5r 1                 ; becomes
+0007D5r 1                 ;
+0007D5r 1  4C rr rr       jmp scan
+0007D8r 1                 ;rts
+0007D8r 1               
+0007D8r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0007D8r 1               
+0007D8r 1               nmi:
+0007D8r 1  48             pha
+0007D9r 1  DA             phx
+0007DAr 1  5A             phy
+0007DBr 1               
+0007DBr 1  2C 04 48       bit T1CL_3      ; reset interrupt flag
+0007DEr 1  20 rr rr       jsr rtc
+0007E1r 1  4C rr rr       jmp exit_nmi
+0007E4r 1               
+0007E4r 1               exit_nmi:
+0007E4r 1  7A             ply
+0007E5r 1  FA             plx
+0007E6r 1  68             pla
+0007E7r 1  40             rti
+0007E8r 1               
+0007E8r 1  40             rti
+0007E9r 1               
+0007E9r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0007E9r 1               ;;
+0007E9r 1               ;;    interrupt is triggered by HIGH edge on VIA CA1 pin
+0007E9r 1               ;;     PORTA low nibble (keypad columns) inputs are diode ORed to CA1
+0007E9r 1               ;;
+0007E9r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0007E9r 1               
+0007E9r 1               irq:
+0007E9r 1               
+0007E9r 1               ; put registers on the stack while handling the IRQ
+0007E9r 1               
+0007E9r 1  48             pha
+0007EAr 1  DA             phx
+0007EBr 1  5A             phy
+0007ECr 1               
+0007ECr 1               ;  find responsible hardware
+0007ECr 1               
+0007ECr 1               ;  Is it VIA_1?
+0007ECr 1               
+0007ECr 1  AD 0D 60       lda IFR_1       ; if IFR_1 has Bit7 set (ie sign=NEGATIVE) then it IS the source of the interrupt
+0007EFr 1  10 25          bpl next_device ; if it's not set (ie sign=POSITIVE) then branch to test the next possible device
+0007F1r 1               
+0007F1r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0007F1r 1               ;;
+0007F1r 1               ;; IFR Flags
+0007F1r 1               ;; B7  B6  B5  B4  B3  B2  B1  B0
+0007F1r 1               ;; IRQ TI1 TI2 CB1 CB2 SR CA1 CA2
+0007F1r 1               ;;
+0007F1r 1               ;; Interrupt source is found by sequentially shifting IFR bit left to put bit-of-interest into the CARRY place
+0007F1r 1               ;; and then branching based on whether CARRY is SET or not
+0007F1r 1               ;;
+0007F1r 1               ;; Only add tests for IRQ sources in use, and adjust the ASLs in each test as necessary
+0007F1r 1               ;;
+0007F1r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0007F1r 1               
+0007F1r 1               test_cb1:
+0007F1r 1  0A             asl
+0007F2r 1  0A             asl
+0007F3r 1  0A             asl
+0007F4r 1  0A             asl
+0007F5r 1  90 09          bcc test_cb2
+0007F7r 1  2C 00 60       bit PORTB_1
+0007FAr 1  20 rr rr       jsr cb1_handler
+0007FDr 1  4C rr rr       jmp exit_irq
+000800r 1               
+000800r 1               test_cb2:
+000800r 1  0A             asl
+000801r 1  90 09          bcc test_ca1
+000803r 1  2C 00 60       bit PORTB_1
+000806r 1  20 rr rr       jsr cb2_handler
+000809r 1  4C rr rr       jmp exit_irq
+00080Cr 1               
+00080Cr 1               test_ca1:
+00080Cr 1               
+00080Cr 1  0A             asl           ; shift CA1 bit into the CARRY bit & test
+00080Dr 1  0A             asl
+00080Er 1  90 06          bcc exit_irq        ; carry clear = leave
+000810r 1  20 rr rr       jsr keypad_handler  ; carry not clear = handle the CA1 interrupt (keypad)
+000813r 1  4C rr rr       jmp exit_irq
+000816r 1               
+000816r 1               
+000816r 1               next_device:
+000816r 1               
+000816r 1               exit_irq:
+000816r 1               
+000816r 1  7A             ply
+000817r 1  FA             plx
+000818r 1  68             pla
+000819r 1  40             rti
+00081Ar 1               
+00081Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00081Ar 1               ;;
+00081Ar 1               ;;      String and data byte variables
+00081Ar 1               ;;
+00081Ar 1               ;;
+00081Ar 1               ;;
+00081Ar 1               
+00081Ar 1  4D 61 72 6B  pause_msg: .asciiz "Mark Time     "
+00081Er 1  20 54 69 6D  
+000822r 1  65 20 20 20  
+000829r 1  3C 73 68 69  start_msg: .asciiz "<shift>+C to start"
+00082Dr 1  66 74 3E 2B  
+000831r 1  43 20 74 6F  
+00083Cr 1  56 69 65 77  new_address_msg: .asciiz "View/Edit Memory"
+000840r 1  2F 45 64 69  
+000844r 1  74 20 4D 65  
+00084Dr 1  38 20 42 79  block_address_msg: .asciiz "8 Byte view"
+000851r 1  74 65 20 76  
+000855r 1  69 65 77 00  
+000859r 1  2E 2E 2E 53  title: .asciiz "...Shed Brain v1..."
+00085Dr 1  68 65 64 20  
+000861r 1  42 72 61 69  
+00086Dr 1  53 68 65 64  emt: .asciiz "Shed Time  MET"
+000871r 1  20 54 69 6D  
+000875r 1  65 20 20 4D  
+00087Cr 1  73 68 65 64  splash: .asciiz "shed> "
+000880r 1  3E 20 00     
+000883r 1  42 65 67 69  mem_start_msg: .asciiz "Begin RAM Test"
+000887r 1  6E 20 52 41  
+00088Br 1  4D 20 54 65  
+000892r 1  52 41 4D 20  mem_pass_msg: .asciiz "RAM Test Pass"
+000896r 1  54 65 73 74  
+00089Ar 1  20 50 61 73  
+0008A0r 1  52 41 4D 20  mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
+0008A4r 1  54 65 73 74  
+0008A8r 1  20 31 20 46  
+0008B0r 1  52 41 4D 20  mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
+0008B4r 1  54 65 73 74  
+0008B8r 1  20 32 20 46  
+0008C0r 1               
+0008C0r 1  54 68 69 73  userPrompt: .asciiz "This is shed! "
+0008C4r 1  20 69 73 20  
+0008C8r 1  73 68 65 64  
+0008CFr 1               
+0008CFr 1  64 rr A9 20  userProg: .byte $64, MESSAGE_POINTER, $A9, $20, $85, MESSAGE_POINTER + 1, $20, <print4, >print4, $60, $00
+0008D3r 1  85 rr 20 rr  
+0008D7r 1  rr 60 00     
+0008DAr 1               
+0008DAr 1  01 03 06 0C  kitLeds: .byte $01, $03, $06, $0C, $18, $30, $60, $C0, $80, $C0, $60, $30, $18, $0C, $06, $03, $01
+0008DEr 1  18 30 60 C0  
+0008E2r 1  80 C0 60 30  
+0008EBr 1               
+0008EBr 1               
+0008EBr 1               ; Reset/IRQ vectors
+0008EBr 1               
+0008EBr 1               .segment "VECTORS"
+000000r 1               
+000000r 1  rr rr          .word nmi
+000002r 1  rr rr          .word reset
+000004r 1  rr rr          .word irq
+000004r 1               
