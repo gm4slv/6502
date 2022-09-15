@@ -1398,939 +1398,953 @@ Current file: spi_trx_dev.s
 0003F5r 1               
 0003F5r 1               check_flags:
 0003F5r 1               
-0003F5r 1               flag_zero:
-0003F5r 1  0F rr 03       bbr0 FLAGS, flag_two
-0003F8r 1  20 rr rr       jsr update_block_address
-0003FBr 1               flag_two:
-0003FBr 1  2F rr 03       bbr2 FLAGS, flag_five
-0003FEr 1  20 rr rr       jsr spi_portb_2
-000401r 1               flag_five:
-000401r 1  5F rr 03       bbr5 FLAGS, no_flag_five
-000404r 1               
-000404r 1  20 rr rr       jsr clock_time
-000407r 1               no_flag_five:
-000407r 1  20 rr rr       jsr update_spi_monitor
-00040Ar 1               flag_seven:
-00040Ar 1  7F rr 03       bbr7 FLAGS, flag_three
-00040Dr 1  20 rr rr       jsr check_beep
-000410r 1               flag_three:
-000410r 1               
-000410r 1  60             rts
-000411r 1               
-000411r 1               ;;;;;;;;;;
-000411r 1               ;;;;;;;;;;
-000411r 1               ;;;
-000411r 1               check_beep:
-000411r 1  38             sec
-000412r 1  A5 rr          lda TICKS
-000414r 1  E5 rr          sbc BEEP_ON_TIME
-000416r 1  C5 rr          cmp BEEP_DELAY_TIME
-000418r 1  90 03          bcc @exit
-00041Ar 1  20 rr rr       jsr beep_off
-00041Dr 1               @exit:
-00041Dr 1  60             rts
-00041Er 1               
-00041Er 1               spi_portb_2:
-00041Er 1               
-00041Er 1  38             sec
-00041Fr 1  A5 rr          lda TICKS
-000421r 1  E5 rr          sbc SPI_LAST
-000423r 1  C9 32          cmp #50
-000425r 1  B0 01          bcs @spi_tx_rx
-000427r 1  60             rts
-000428r 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-000428r 1               @spi_tx_rx:
-000428r 1  9C 00 50       stz SPI_PORT
-00042Br 1  A5 rr          lda SPI_BYTE
-00042Dr 1  8D rr rr       sta SPI_TX_BYTE
-000430r 1  20 rr rr       jsr spi_transceive
-000433r 1  8D rr rr       sta SPI_RX_BYTE
-000436r 1                 ;lda #$39
-000436r 1                 ;jsr spi_transceive
-000436r 1  A9 04          lda #CS
-000438r 1  8D 00 50       sta SPI_PORT
-00043Br 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;
-00043Br 1  9C 00 50       stz SPI_PORT
-00043Er 1  A5 rr          lda SPI_BYTE + 1
-000440r 1  8D rr rr       sta SPI_TX_BYTE + 1
-000443r 1  20 rr rr       jsr spi_transceive
-000446r 1  8D rr rr       sta SPI_RX_BYTE + 1
-000449r 1                 ;lda #$39
-000449r 1                 ;jsr spi_transceive
-000449r 1  A9 04          lda #CS
-00044Br 1  8D 00 50       sta SPI_PORT
-00044Er 1               
-00044Er 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00044Er 1               
-00044Er 1  A5 rr          lda TICKS
-000450r 1  85 rr          sta SPI_LAST
-000452r 1               
-000452r 1  60             rts
-000453r 1               
-000453r 1               ;clock_via_3:
-000453r 1               ;  sec
-000453r 1               ;  lda TICKS
-000453r 1               ;  sbc LED2_LAST
-000453r 1               ;  cmp #100
-000453r 1               ;  bcc exit_clock_via_3
-000453r 1               ;
-000453r 1               ;  lda TEN_SECONDS
-000453r 1               ;  asl
-000453r 1               ;  asl
-000453r 1               ;  asl
-000453r 1               ;  asl
-000453r 1               ;  ora SECONDS
-000453r 1               ;  sta PORTB_3
-000453r 1               ;
-000453r 1               ;@exit:
-000453r 1               ;  lda TICKS
-000453r 1               ;  sta LED2_LAST
-000453r 1               ;exit_clock_via_3:
-000453r 1               ;  rts
-000453r 1               
-000453r 1               
-000453r 1               update_spi_monitor:
-000453r 1  38             sec
+0003F5r 1  A5 rr        lda FLAGS
+0003F7r 1  8D 00 48     sta PORTB_3
+0003FAr 1               
+0003FAr 1               flag_zero:
+0003FAr 1  0F rr 03       bbr0 FLAGS, flag_one
+0003FDr 1  20 rr rr       jsr update_block_address
+000400r 1               
+000400r 1               flag_one:
+000400r 1               
+000400r 1               flag_two:
+000400r 1  2F rr 03       bbr2 FLAGS, flag_three
+000403r 1  20 rr rr       jsr spi_portb_2
+000406r 1               
+000406r 1               flag_three:
+000406r 1               
+000406r 1               flag_four:
+000406r 1               
+000406r 1               flag_six:
+000406r 1               
+000406r 1               flag_seven:
+000406r 1  7F rr 03       bbr7 FLAGS, flag_five
+000409r 1  20 rr rr       jsr check_beep
+00040Cr 1               
+00040Cr 1               flag_five:
+00040Cr 1  5F rr 04       bbr5 FLAGS, no_flag_five
+00040Fr 1  20 rr rr       jsr clock_time
+000412r 1               
+000412r 1  60             rts
+000413r 1               
+000413r 1               no_flag_five:
+000413r 1  20 rr rr       jsr update_spi_monitor
+000416r 1  60             rts
+000417r 1               
+000417r 1               ;;;;;;;;;;
+000417r 1               ;;;;;;;;;;
+000417r 1               ;;;
+000417r 1               check_beep:
+000417r 1  38             sec
+000418r 1  A5 rr          lda TICKS
+00041Ar 1  E5 rr          sbc BEEP_ON_TIME
+00041Cr 1  C5 rr          cmp BEEP_DELAY_TIME
+00041Er 1  90 03          bcc @exit
+000420r 1  20 rr rr       jsr beep_off
+000423r 1               @exit:
+000423r 1  60             rts
+000424r 1               
+000424r 1               spi_portb_2:
+000424r 1               
+000424r 1  38             sec
+000425r 1  A5 rr          lda TICKS
+000427r 1  E5 rr          sbc SPI_LAST
+000429r 1  C9 32          cmp #50
+00042Br 1  B0 01          bcs @spi_tx_rx
+00042Dr 1  60             rts
+00042Er 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;;
+00042Er 1               @spi_tx_rx:
+00042Er 1  9C 00 50       stz SPI_PORT
+000431r 1  A5 rr          lda SPI_BYTE
+000433r 1  8D rr rr       sta SPI_TX_BYTE
+000436r 1  20 rr rr       jsr spi_transceive
+000439r 1  8D rr rr       sta SPI_RX_BYTE
+00043Cr 1                 ;lda #$39
+00043Cr 1                 ;jsr spi_transceive
+00043Cr 1  A9 04          lda #CS
+00043Er 1  8D 00 50       sta SPI_PORT
+000441r 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;
+000441r 1  9C 00 50       stz SPI_PORT
+000444r 1  A5 rr          lda SPI_BYTE + 1
+000446r 1  8D rr rr       sta SPI_TX_BYTE + 1
+000449r 1  20 rr rr       jsr spi_transceive
+00044Cr 1  8D rr rr       sta SPI_RX_BYTE + 1
+00044Fr 1                 ;lda #$39
+00044Fr 1                 ;jsr spi_transceive
+00044Fr 1  A9 04          lda #CS
+000451r 1  8D 00 50       sta SPI_PORT
+000454r 1               
+000454r 1                 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000454r 1               
 000454r 1  A5 rr          lda TICKS
-000456r 1  E5 rr          sbc CLOCK_LAST
-000458r 1  C9 32          cmp #50
-00045Ar 1  B0 01          bcs @do_update
-00045Cr 1  60             rts
-00045Dr 1               @do_update:
-00045Dr 1  20 rr rr       jsr lcd_2_cursor_off
-000460r 1  20 rr rr       jsr lcd_2_clear
-000463r 1               
-000463r 1  20 rr rr       jsr lcd_2_line_1
-000466r 1  A9 73          lda #'s'
-000468r 1  20 rr rr       jsr print_2_char
-00046Br 1               
-00046Br 1               
-00046Br 1  A9 54          lda #'T'
-00046Dr 1  20 rr rr       jsr print_2_char
-000470r 1  A9 58          lda #'X'
-000472r 1  20 rr rr       jsr print_2_char
-000475r 1  A9 3A          lda #':'
-000477r 1  20 rr rr       jsr print_2_char
-00047Ar 1  A9 20          lda #' '
-00047Cr 1  20 rr rr       jsr print_2_char
-00047Fr 1               
-00047Fr 1               
-00047Fr 1                 ;lda SPI_TX_BYTE + 1
-00047Fr 1                 ;jsr print_2_char
-00047Fr 1                 ;lda #' '
-00047Fr 1                 ;jsr print_2_char
-00047Fr 1  A9 24          lda #'$'
-000481r 1  20 rr rr       jsr print_2_char
-000484r 1  AD rr rr       lda SPI_TX_BYTE
-000487r 1  20 rr rr       jsr bintohex_2
-00048Ar 1  A9 20          lda #' '
-00048Cr 1  20 rr rr       jsr print_2_char
-00048Fr 1                 ;lda SPI_TX_BYTE
-00048Fr 1                 ;jsr print_2_char
-00048Fr 1                 ;lda #' '
-00048Fr 1                 ;jsr print_2_char
-00048Fr 1  A9 24          lda #'$'
-000491r 1  20 rr rr       jsr print_2_char
-000494r 1  AD rr rr       lda SPI_TX_BYTE + 1
-000497r 1  20 rr rr       jsr bintohex_2
-00049Ar 1               
-00049Ar 1               
-00049Ar 1               
-00049Ar 1  20 rr rr       jsr lcd_2_line_2
-00049Dr 1  A9 73          lda #'s'
-00049Fr 1               
-00049Fr 1  20 rr rr       jsr print_2_char
-0004A2r 1  A9 52          lda #'R'
-0004A4r 1  20 rr rr       jsr print_2_char
-0004A7r 1  A9 58          lda #'X'
-0004A9r 1  20 rr rr       jsr print_2_char
-0004ACr 1  A9 3A          lda #':'
-0004AEr 1  20 rr rr       jsr print_2_char
-0004B1r 1  A9 20          lda #' '
-0004B3r 1  20 rr rr       jsr print_2_char
-0004B6r 1               
-0004B6r 1                 ;lda SPI_RX_BYTE
-0004B6r 1                 ;jsr print_2_char
-0004B6r 1                 ;lda #' '
-0004B6r 1                 ;jsr print_2_char
-0004B6r 1  A9 24          lda #'$'
-0004B8r 1  20 rr rr       jsr print_2_char
-0004BBr 1  AD rr rr       lda SPI_RX_BYTE
-0004BEr 1  20 rr rr       jsr bintohex_2
-0004C1r 1  A9 20          lda #' '
-0004C3r 1  20 rr rr       jsr print_2_char
-0004C6r 1                 ;lda SPI_RX_BYTE + 1
-0004C6r 1                 ;jsr print_2_char
-0004C6r 1                 ;lda #' '
-0004C6r 1                 ;jsr print_2_char
-0004C6r 1  A9 24          lda #'$'
-0004C8r 1  20 rr rr       jsr print_2_char
-0004CBr 1  AD rr rr       lda SPI_RX_BYTE + 1
-0004CEr 1  20 rr rr       jsr bintohex_2
-0004D1r 1               
-0004D1r 1               
-0004D1r 1               
-0004D1r 1  A5 rr          lda TICKS
-0004D3r 1  85 rr          sta CLOCK_LAST
-0004D5r 1  60             rts
-0004D6r 1               
-0004D6r 1               update_block_address:
-0004D6r 1  20 rr rr       jsr lcd_line_2
-0004D9r 1  38             sec
-0004DAr 1  A5 rr          lda TICKS
-0004DCr 1  E5 rr          sbc TOGGLE_TIME
-0004DEr 1  C9 64          cmp #$64
-0004E0r 1  90 07          bcc @exit
-0004E2r 1  20 rr rr       jsr block_address
-0004E5r 1  A5 rr          lda TICKS
-0004E7r 1  85 rr          sta TOGGLE_TIME
-0004E9r 1               @exit:
-0004E9r 1  60             rts
-0004EAr 1               
-0004EAr 1               clock_time:
-0004EAr 1  38             sec
+000456r 1  85 rr          sta SPI_LAST
+000458r 1               
+000458r 1  60             rts
+000459r 1               
+000459r 1               ;clock_via_3:
+000459r 1               ;  sec
+000459r 1               ;  lda TICKS
+000459r 1               ;  sbc LED2_LAST
+000459r 1               ;  cmp #100
+000459r 1               ;  bcc exit_clock_via_3
+000459r 1               ;
+000459r 1               ;  lda TEN_SECONDS
+000459r 1               ;  asl
+000459r 1               ;  asl
+000459r 1               ;  asl
+000459r 1               ;  asl
+000459r 1               ;  ora SECONDS
+000459r 1               ;  sta PORTB_3
+000459r 1               ;
+000459r 1               ;@exit:
+000459r 1               ;  lda TICKS
+000459r 1               ;  sta LED2_LAST
+000459r 1               ;exit_clock_via_3:
+000459r 1               ;  rts
+000459r 1               
+000459r 1               
+000459r 1               update_spi_monitor:
+000459r 1  38             sec
+00045Ar 1  A5 rr          lda TICKS
+00045Cr 1  E5 rr          sbc CLOCK_LAST
+00045Er 1  C9 32          cmp #50
+000460r 1  B0 01          bcs @do_update
+000462r 1  60             rts
+000463r 1               @do_update:
+000463r 1  20 rr rr       jsr lcd_2_cursor_off
+000466r 1  20 rr rr       jsr lcd_2_clear
+000469r 1               
+000469r 1  20 rr rr       jsr lcd_2_line_1
+00046Cr 1  A9 73          lda #'s'
+00046Er 1  20 rr rr       jsr print_2_char
+000471r 1               
+000471r 1               
+000471r 1  A9 54          lda #'T'
+000473r 1  20 rr rr       jsr print_2_char
+000476r 1  A9 58          lda #'X'
+000478r 1  20 rr rr       jsr print_2_char
+00047Br 1  A9 3A          lda #':'
+00047Dr 1  20 rr rr       jsr print_2_char
+000480r 1  A9 20          lda #' '
+000482r 1  20 rr rr       jsr print_2_char
+000485r 1               
+000485r 1               
+000485r 1                 ;lda SPI_TX_BYTE + 1
+000485r 1                 ;jsr print_2_char
+000485r 1                 ;lda #' '
+000485r 1                 ;jsr print_2_char
+000485r 1  A9 24          lda #'$'
+000487r 1  20 rr rr       jsr print_2_char
+00048Ar 1  AD rr rr       lda SPI_TX_BYTE
+00048Dr 1  20 rr rr       jsr bintohex_2
+000490r 1  A9 20          lda #' '
+000492r 1  20 rr rr       jsr print_2_char
+000495r 1                 ;lda SPI_TX_BYTE
+000495r 1                 ;jsr print_2_char
+000495r 1                 ;lda #' '
+000495r 1                 ;jsr print_2_char
+000495r 1  A9 24          lda #'$'
+000497r 1  20 rr rr       jsr print_2_char
+00049Ar 1  AD rr rr       lda SPI_TX_BYTE + 1
+00049Dr 1  20 rr rr       jsr bintohex_2
+0004A0r 1               
+0004A0r 1               
+0004A0r 1               
+0004A0r 1  20 rr rr       jsr lcd_2_line_2
+0004A3r 1  A9 73          lda #'s'
+0004A5r 1               
+0004A5r 1  20 rr rr       jsr print_2_char
+0004A8r 1  A9 52          lda #'R'
+0004AAr 1  20 rr rr       jsr print_2_char
+0004ADr 1  A9 58          lda #'X'
+0004AFr 1  20 rr rr       jsr print_2_char
+0004B2r 1  A9 3A          lda #':'
+0004B4r 1  20 rr rr       jsr print_2_char
+0004B7r 1  A9 20          lda #' '
+0004B9r 1  20 rr rr       jsr print_2_char
+0004BCr 1               
+0004BCr 1                 ;lda SPI_RX_BYTE
+0004BCr 1                 ;jsr print_2_char
+0004BCr 1                 ;lda #' '
+0004BCr 1                 ;jsr print_2_char
+0004BCr 1  A9 24          lda #'$'
+0004BEr 1  20 rr rr       jsr print_2_char
+0004C1r 1  AD rr rr       lda SPI_RX_BYTE
+0004C4r 1  20 rr rr       jsr bintohex_2
+0004C7r 1  A9 20          lda #' '
+0004C9r 1  20 rr rr       jsr print_2_char
+0004CCr 1                 ;lda SPI_RX_BYTE + 1
+0004CCr 1                 ;jsr print_2_char
+0004CCr 1                 ;lda #' '
+0004CCr 1                 ;jsr print_2_char
+0004CCr 1  A9 24          lda #'$'
+0004CEr 1  20 rr rr       jsr print_2_char
+0004D1r 1  AD rr rr       lda SPI_RX_BYTE + 1
+0004D4r 1  20 rr rr       jsr bintohex_2
+0004D7r 1               
+0004D7r 1               
+0004D7r 1               
+0004D7r 1  A5 rr          lda TICKS
+0004D9r 1  85 rr          sta CLOCK_LAST
+0004DBr 1  60             rts
+0004DCr 1               
+0004DCr 1               update_block_address:
+0004DCr 1  20 rr rr       jsr lcd_line_2
+0004DFr 1  38             sec
+0004E0r 1  A5 rr          lda TICKS
+0004E2r 1  E5 rr          sbc TOGGLE_TIME
+0004E4r 1  C9 64          cmp #$64
+0004E6r 1  90 07          bcc @exit
+0004E8r 1  20 rr rr       jsr block_address
 0004EBr 1  A5 rr          lda TICKS
-0004EDr 1  E5 rr          sbc CLOCK_LAST
-0004EFr 1  C9 32          cmp #50
-0004F1r 1  90 5A          bcc @exit
-0004F3r 1               
-0004F3r 1  20 rr rr       jsr lcd_2_cursor_off
-0004F6r 1  20 rr rr       jsr lcd_2_line_1
-0004F9r 1  A5 rr          lda HUNDRED_HRS
-0004FBr 1  20 rr rr       jsr bintoascii_2
-0004FEr 1  A5 rr          lda TEN_HRS
-000500r 1  20 rr rr       jsr bintoascii_2
-000503r 1  A5 rr          lda HRS
-000505r 1  20 rr rr       jsr bintoascii_2
-000508r 1  A9 3A          lda #':'
-00050Ar 1  20 rr rr       jsr print_2_char
-00050Dr 1  A5 rr          lda TEN_MINUTES
-00050Fr 1  20 rr rr       jsr bintoascii_2
-000512r 1  A5 rr          lda MINUTES
-000514r 1  20 rr rr       jsr bintoascii_2
-000517r 1  A9 3A          lda #':'
-000519r 1  20 rr rr       jsr print_2_char
-00051Cr 1  A5 rr          lda TEN_SECONDS
-00051Er 1  20 rr rr       jsr bintoascii_2
-000521r 1  A5 rr          lda SECONDS
-000523r 1  20 rr rr       jsr bintoascii_2
-000526r 1  A9 20          lda #' '
-000528r 1  20 rr rr       jsr print_2_char
-00052Br 1  A9 20          lda #' '
-00052Dr 1  20 rr rr       jsr print_2_char
-000530r 1  A9 20          lda #' '
-000532r 1  20 rr rr       jsr print_2_char
-000535r 1  A9 20          lda #' '
-000537r 1  20 rr rr       jsr print_2_char
-00053Ar 1  A9 20          lda #' '
-00053Cr 1  20 rr rr       jsr print_2_char
-00053Fr 1  A9 20          lda #' '
-000541r 1  20 rr rr       jsr print_2_char
-000544r 1  A9 20          lda #' '
-000546r 1  20 rr rr       jsr print_2_char
-000549r 1  A5 rr          lda TICKS
-00054Br 1  85 rr          sta CLOCK_LAST
-00054Dr 1               @exit:
-00054Dr 1  60             rts
-00054Er 1               
-00054Er 1               
-00054Er 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00054Er 1               ;;
-00054Er 1               ;;      update screen when new memory location is selected
-00054Er 1               ;;
-00054Er 1               ;;
-00054Er 1               new_address:
-00054Er 1  20 rr rr       jsr lcd_clear
-000551r 1  20 rr rr       jsr lcd_cursor_on
-000554r 1  A9 rr          lda #<new_address_msg
-000556r 1  85 rr          sta MESSAGE_POINTER
-000558r 1  A9 rr          lda #>new_address_msg
-00055Ar 1  85 rr          sta MESSAGE_POINTER + 1
-00055Cr 1  20 rr rr       jsr print1
-00055Fr 1  20 rr rr       jsr lcd_line_2
-000562r 1               print_address:
-000562r 1  A9 24          lda #'$'
-000564r 1  20 rr rr       jsr print_char
-000567r 1  A5 rr          lda DUMP_POINTER + 1
-000569r 1  20 rr rr       jsr bintohex
-00056Cr 1  AD rr rr       lda HI_DIGIT
-00056Fr 1  20 rr rr       jsr print_char
-000572r 1  AD rr rr       lda LO_DIGIT
+0004EDr 1  85 rr          sta TOGGLE_TIME
+0004EFr 1               @exit:
+0004EFr 1  60             rts
+0004F0r 1               
+0004F0r 1               clock_time:
+0004F0r 1  38             sec
+0004F1r 1  A5 rr          lda TICKS
+0004F3r 1  E5 rr          sbc CLOCK_LAST
+0004F5r 1  C9 32          cmp #50
+0004F7r 1  90 5A          bcc @exit
+0004F9r 1               
+0004F9r 1  20 rr rr       jsr lcd_2_cursor_off
+0004FCr 1  20 rr rr       jsr lcd_2_line_1
+0004FFr 1  A5 rr          lda HUNDRED_HRS
+000501r 1  20 rr rr       jsr bintoascii_2
+000504r 1  A5 rr          lda TEN_HRS
+000506r 1  20 rr rr       jsr bintoascii_2
+000509r 1  A5 rr          lda HRS
+00050Br 1  20 rr rr       jsr bintoascii_2
+00050Er 1  A9 3A          lda #':'
+000510r 1  20 rr rr       jsr print_2_char
+000513r 1  A5 rr          lda TEN_MINUTES
+000515r 1  20 rr rr       jsr bintoascii_2
+000518r 1  A5 rr          lda MINUTES
+00051Ar 1  20 rr rr       jsr bintoascii_2
+00051Dr 1  A9 3A          lda #':'
+00051Fr 1  20 rr rr       jsr print_2_char
+000522r 1  A5 rr          lda TEN_SECONDS
+000524r 1  20 rr rr       jsr bintoascii_2
+000527r 1  A5 rr          lda SECONDS
+000529r 1  20 rr rr       jsr bintoascii_2
+00052Cr 1  A9 20          lda #' '
+00052Er 1  20 rr rr       jsr print_2_char
+000531r 1  A9 20          lda #' '
+000533r 1  20 rr rr       jsr print_2_char
+000536r 1  A9 20          lda #' '
+000538r 1  20 rr rr       jsr print_2_char
+00053Br 1  A9 20          lda #' '
+00053Dr 1  20 rr rr       jsr print_2_char
+000540r 1  A9 20          lda #' '
+000542r 1  20 rr rr       jsr print_2_char
+000545r 1  A9 20          lda #' '
+000547r 1  20 rr rr       jsr print_2_char
+00054Ar 1  A9 20          lda #' '
+00054Cr 1  20 rr rr       jsr print_2_char
+00054Fr 1  A5 rr          lda TICKS
+000551r 1  85 rr          sta CLOCK_LAST
+000553r 1               @exit:
+000553r 1  60             rts
+000554r 1               
+000554r 1               
+000554r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000554r 1               ;;
+000554r 1               ;;      update screen when new memory location is selected
+000554r 1               ;;
+000554r 1               ;;
+000554r 1               new_address:
+000554r 1  20 rr rr       jsr lcd_clear
+000557r 1  20 rr rr       jsr lcd_cursor_on
+00055Ar 1  A9 rr          lda #<new_address_msg
+00055Cr 1  85 rr          sta MESSAGE_POINTER
+00055Er 1  A9 rr          lda #>new_address_msg
+000560r 1  85 rr          sta MESSAGE_POINTER + 1
+000562r 1  20 rr rr       jsr print1
+000565r 1  20 rr rr       jsr lcd_line_2
+000568r 1               print_address:
+000568r 1  A9 24          lda #'$'
+00056Ar 1  20 rr rr       jsr print_char
+00056Dr 1  A5 rr          lda DUMP_POINTER + 1
+00056Fr 1  20 rr rr       jsr bintohex
+000572r 1  AD rr rr       lda HI_DIGIT
 000575r 1  20 rr rr       jsr print_char
-000578r 1  A5 rr          lda DUMP_POINTER
-00057Ar 1  20 rr rr       jsr bintohex
-00057Dr 1  AD rr rr       lda HI_DIGIT
-000580r 1  20 rr rr       jsr print_char
-000583r 1  AD rr rr       lda LO_DIGIT
+000578r 1  AD rr rr       lda LO_DIGIT
+00057Br 1  20 rr rr       jsr print_char
+00057Er 1  A5 rr          lda DUMP_POINTER
+000580r 1  20 rr rr       jsr bintohex
+000583r 1  AD rr rr       lda HI_DIGIT
 000586r 1  20 rr rr       jsr print_char
-000589r 1  A9 20          lda #' '
-00058Br 1  20 rr rr       jsr print_char
-00058Er 1  A0 00          ldy #$00
-000590r 1  B1 rr          lda (DUMP_POINTER),y
-000592r 1  20 rr rr       jsr bintohex
-000595r 1  AD rr rr       lda HI_DIGIT
-000598r 1  20 rr rr       jsr print_char
-00059Br 1  AD rr rr       lda LO_DIGIT
+000589r 1  AD rr rr       lda LO_DIGIT
+00058Cr 1  20 rr rr       jsr print_char
+00058Fr 1  A9 20          lda #' '
+000591r 1  20 rr rr       jsr print_char
+000594r 1  A0 00          ldy #$00
+000596r 1  B1 rr          lda (DUMP_POINTER),y
+000598r 1  20 rr rr       jsr bintohex
+00059Br 1  AD rr rr       lda HI_DIGIT
 00059Er 1  20 rr rr       jsr print_char
-0005A1r 1  A9 20          lda #' '
-0005A3r 1  20 rr rr       jsr print_char
-0005A6r 1  B1 rr          lda (DUMP_POINTER),y
-0005A8r 1  20 rr rr       jsr print_char
-0005ABr 1  A9 rr          lda #<splash
-0005ADr 1  85 rr          sta MESSAGE_POINTER
-0005AFr 1  A9 rr          lda #>splash
-0005B1r 1  85 rr          sta MESSAGE_POINTER + 1
-0005B3r 1  4C rr rr       jmp print3    ; (jsr / rts)
-0005B6r 1                 ;jsr print3   ; add cursor after re-writing the address/data line
-0005B6r 1                 ;rts
-0005B6r 1               
-0005B6r 1               
-0005B6r 1               
-0005B6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0005B6r 1               ;;
-0005B6r 1               ;;      display 8 bytes of data for a "block" of memory
-0005B6r 1               ;;
-0005B6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0005B6r 1               
-0005B6r 1               block_address:
-0005B6r 1               
-0005B6r 1  20 rr rr       jsr lcd_clear
-0005B9r 1  20 rr rr       jsr lcd_cursor_off
-0005BCr 1  A9 rr          lda #<block_address_msg
-0005BEr 1  85 rr          sta MESSAGE_POINTER
-0005C0r 1  A9 rr          lda #>block_address_msg
-0005C2r 1  85 rr          sta MESSAGE_POINTER + 1
-0005C4r 1  20 rr rr       jsr print1
-0005C7r 1  20 rr rr       jsr lcd_line_2
-0005CAr 1  A0 00          ldy #$00
-0005CCr 1  A9 24          lda #'$'
-0005CEr 1  20 rr rr       jsr print_char
-0005D1r 1  A5 rr          lda DUMP_POINTER + 1
-0005D3r 1  20 rr rr       jsr bintohex
-0005D6r 1  AD rr rr       lda HI_DIGIT
-0005D9r 1  20 rr rr       jsr print_char
-0005DCr 1  AD rr rr       lda LO_DIGIT
+0005A1r 1  AD rr rr       lda LO_DIGIT
+0005A4r 1  20 rr rr       jsr print_char
+0005A7r 1  A9 20          lda #' '
+0005A9r 1  20 rr rr       jsr print_char
+0005ACr 1  B1 rr          lda (DUMP_POINTER),y
+0005AEr 1  20 rr rr       jsr print_char
+0005B1r 1  A9 rr          lda #<splash
+0005B3r 1  85 rr          sta MESSAGE_POINTER
+0005B5r 1  A9 rr          lda #>splash
+0005B7r 1  85 rr          sta MESSAGE_POINTER + 1
+0005B9r 1  4C rr rr       jmp print3    ; (jsr / rts)
+0005BCr 1                 ;jsr print3   ; add cursor after re-writing the address/data line
+0005BCr 1                 ;rts
+0005BCr 1               
+0005BCr 1               
+0005BCr 1               
+0005BCr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0005BCr 1               ;;
+0005BCr 1               ;;      display 8 bytes of data for a "block" of memory
+0005BCr 1               ;;
+0005BCr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0005BCr 1               
+0005BCr 1               block_address:
+0005BCr 1               
+0005BCr 1  20 rr rr       jsr lcd_clear
+0005BFr 1  20 rr rr       jsr lcd_cursor_off
+0005C2r 1  A9 rr          lda #<block_address_msg
+0005C4r 1  85 rr          sta MESSAGE_POINTER
+0005C6r 1  A9 rr          lda #>block_address_msg
+0005C8r 1  85 rr          sta MESSAGE_POINTER + 1
+0005CAr 1  20 rr rr       jsr print1
+0005CDr 1  20 rr rr       jsr lcd_line_2
+0005D0r 1  A0 00          ldy #$00
+0005D2r 1  A9 24          lda #'$'
+0005D4r 1  20 rr rr       jsr print_char
+0005D7r 1  A5 rr          lda DUMP_POINTER + 1
+0005D9r 1  20 rr rr       jsr bintohex
+0005DCr 1  AD rr rr       lda HI_DIGIT
 0005DFr 1  20 rr rr       jsr print_char
-0005E2r 1  A5 rr          lda DUMP_POINTER
-0005E4r 1  20 rr rr       jsr bintohex
-0005E7r 1  AD rr rr       lda HI_DIGIT
-0005EAr 1  20 rr rr       jsr print_char
-0005EDr 1  AD rr rr       lda LO_DIGIT
+0005E2r 1  AD rr rr       lda LO_DIGIT
+0005E5r 1  20 rr rr       jsr print_char
+0005E8r 1  A5 rr          lda DUMP_POINTER
+0005EAr 1  20 rr rr       jsr bintohex
+0005EDr 1  AD rr rr       lda HI_DIGIT
 0005F0r 1  20 rr rr       jsr print_char
-0005F3r 1  20 rr rr       jsr lcd_line_3
-0005F6r 1               loop1:
-0005F6r 1  B1 rr          lda (DUMP_POINTER),y
-0005F8r 1  20 rr rr       jsr bintohex
-0005FBr 1  AD rr rr       lda HI_DIGIT
-0005FEr 1  20 rr rr       jsr print_char
-000601r 1  AD rr rr       lda LO_DIGIT
+0005F3r 1  AD rr rr       lda LO_DIGIT
+0005F6r 1  20 rr rr       jsr print_char
+0005F9r 1  20 rr rr       jsr lcd_line_3
+0005FCr 1               loop1:
+0005FCr 1  B1 rr          lda (DUMP_POINTER),y
+0005FEr 1  20 rr rr       jsr bintohex
+000601r 1  AD rr rr       lda HI_DIGIT
 000604r 1  20 rr rr       jsr print_char
-000607r 1  B1 rr          lda (DUMP_POINTER),y
-000609r 1  C8             iny
-00060Ar 1  C0 08          cpy #$08
-00060Cr 1  D0 E8          bne loop1
-00060Er 1  A9 20          lda #' '
-000610r 1  20 rr rr       jsr print_char
-000613r 1  A9 48          lda #'H'
-000615r 1  20 rr rr       jsr print_char
-000618r 1  A9 65          lda #'e'
-00061Ar 1  20 rr rr       jsr print_char
-00061Dr 1  A9 78          lda #'x'
-00061Fr 1  20 rr rr       jsr print_char
-000622r 1  20 rr rr       jsr lcd_line_4
-000625r 1  A0 00          ldy #$00
-000627r 1               loop2:
-000627r 1  A9 20          lda #$20
-000629r 1  20 rr rr       jsr print_char
-00062Cr 1  B1 rr          lda (DUMP_POINTER),y
-00062Er 1  20 rr rr       jsr print_char
-000631r 1  C8             iny
-000632r 1  C0 08          cpy #$08
-000634r 1  D0 F1          bne loop2
-000636r 1  A9 20          lda #' '
-000638r 1  20 rr rr       jsr print_char
-00063Br 1  A9 43          lda #'C'
-00063Dr 1  20 rr rr       jsr print_char
-000640r 1  A9 68          lda #'h'
-000642r 1  20 rr rr       jsr print_char
-000645r 1  A9 72          lda #'r'
-000647r 1               
-000647r 1  4C rr rr       jmp print_char  ; (jsr / rts)
-00064Ar 1               
-00064Ar 1                 ;jsr print_char
-00064Ar 1                 ;rts
-00064Ar 1               
-00064Ar 1               
-00064Ar 1               
-00064Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00064Ar 1               ;;
-00064Ar 1               ;;      Monitor function - decrement the selected address
-00064Ar 1               ;;
-00064Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00064Ar 1               
-00064Ar 1               decrement_address:
-00064Ar 1               
-00064Ar 1  38             sec
-00064Br 1  A5 rr          lda DUMP_POINTER
-00064Dr 1  E9 01          sbc #$01
-00064Fr 1  85 rr          sta DUMP_POINTER
-000651r 1  8D rr rr       sta BYTE
-000654r 1  A5 rr          lda DUMP_POINTER + 1
-000656r 1  E9 00          sbc #$00
-000658r 1  85 rr          sta DUMP_POINTER + 1
-00065Ar 1  8D rr rr       sta BYTE + 1
-00065Dr 1  60             rts
-00065Er 1               
-00065Er 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00065Er 1               ;;
-00065Er 1               ;;      Monitor function - increment the selected address
-00065Er 1               ;;
-00065Er 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00065Er 1               
-00065Er 1               increment_address:
-00065Er 1               
-00065Er 1  18             clc
-00065Fr 1  A5 rr          lda DUMP_POINTER
-000661r 1  69 01          adc #$01
-000663r 1  85 rr          sta DUMP_POINTER
-000665r 1  8D rr rr       sta BYTE
-000668r 1  A5 rr          lda DUMP_POINTER + 1
-00066Ar 1  69 00          adc #$00
-00066Cr 1  85 rr          sta DUMP_POINTER + 1
-00066Er 1  8D rr rr       sta BYTE + 1
-000671r 1  60             rts
-000672r 1               
-000672r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000672r 1               ;;
-000672r 1               ;;      Monitor function - increment the selected block of  addresses by 8
-000672r 1               ;;
-000672r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000672r 1               
-000672r 1               increment_block:
-000672r 1               
-000672r 1  18             clc
-000673r 1  A5 rr          lda DUMP_POINTER
-000675r 1  69 08          adc #$08
-000677r 1  85 rr          sta DUMP_POINTER
-000679r 1  8D rr rr       sta BYTE
-00067Cr 1  A5 rr          lda DUMP_POINTER + 1
-00067Er 1  69 00          adc #$00
-000680r 1  85 rr          sta DUMP_POINTER + 1
-000682r 1  8D rr rr       sta BYTE + 1
-000685r 1  60             rts
-000686r 1               
-000686r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000686r 1               ;;
-000686r 1               ;;      Monitor function - decrement the selected block of  addresses by 8
-000686r 1               ;;
-000686r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000686r 1               
-000686r 1               decrement_block:
-000686r 1               
-000686r 1  38             sec
-000687r 1  A5 rr          lda DUMP_POINTER
-000689r 1  E9 08          sbc #$08
-00068Br 1  85 rr          sta DUMP_POINTER
-00068Dr 1  8D rr rr       sta BYTE
-000690r 1  A5 rr          lda DUMP_POINTER + 1
-000692r 1  E9 00          sbc #$00
-000694r 1  85 rr          sta DUMP_POINTER + 1
-000696r 1  8D rr rr       sta BYTE + 1
-000699r 1  60             rts
-00069Ar 1               
-00069Ar 1               
-00069Ar 1               
-00069Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00069Ar 1               ;;
-00069Ar 1               ;; use last 4 key presses (as hex bytes) to fill two BYTES
-00069Ar 1               ;;
-00069Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00069Ar 1               
-00069Ar 1               keys_byte:
-00069Ar 1               
-00069Ar 1  AD rr rr       lda KEY_PRESS + 1
-00069Dr 1  0A             asl
-00069Er 1  0A             asl
-00069Fr 1  0A             asl
-0006A0r 1  0A             asl
-0006A1r 1  8D rr rr       sta BYTE
-0006A4r 1  AD rr rr       lda KEY_PRESS
-0006A7r 1  0D rr rr       ora BYTE
-0006AAr 1  8D rr rr       sta BYTE
-0006ADr 1  AD rr rr       lda KEY_PRESS + 3
-0006B0r 1  0A             asl
-0006B1r 1  0A             asl
-0006B2r 1  0A             asl
-0006B3r 1  0A             asl
-0006B4r 1  8D rr rr       sta BYTE + 1
-0006B7r 1  AD rr rr       lda KEY_PRESS + 2
-0006BAr 1  0D rr rr       ora BYTE + 1
-0006BDr 1  8D rr rr       sta BYTE + 1
-0006C0r 1  60             rts
-0006C1r 1               
-0006C1r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006C1r 1               ;;
-0006C1r 1               ;;    toggle the display/update of SPI Monitor on LCD2
-0006C1r 1               ;;
-0006C1r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006C1r 1               
-0006C1r 1               ;show_clock:
-0006C1r 1               clock_or_spi:
-0006C1r 1  DF rr 10       bbs5 FLAGS, reset_bit5
-0006C4r 1  D7 rr          smb5 FLAGS
-0006C6r 1  A9 rr          lda #<emt
-0006C8r 1  85 rr          sta MESSAGE_POINTER
-0006CAr 1  A9 rr          lda #>emt
-0006CCr 1  85 rr          sta MESSAGE_POINTER + 1
-0006CEr 1  20 rr rr       jsr print2_2
-0006D1r 1  4C rr rr       jmp exit_clock_or_spi
-0006D4r 1               reset_bit5:
-0006D4r 1  57 rr          rmb5 FLAGS
-0006D6r 1                 ;lda #<pause_msg
-0006D6r 1                 ;sta MESSAGE_POINTER
-0006D6r 1                 ;lda #>pause_msg
-0006D6r 1                 ;sta MESSAGE_POINTER + 1
-0006D6r 1                 ;jsr print2_2
-0006D6r 1                 ;jsr update_spi_monitor
-0006D6r 1               exit_clock_or_spi:
-0006D6r 1  60             rts
-0006D7r 1               
-0006D7r 1               
-0006D7r 1               
-0006D7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006D7r 1               ;;
-0006D7r 1               ;;    toggle the automatic update view of the "8-byte memory block"
-0006D7r 1               ;;
-0006D7r 1               
-0006D7r 1               show_block:
-0006D7r 1               
-0006D7r 1  8F rr 05       bbs0 FLAGS, reset_bit0
-0006DAr 1  87 rr          smb0 FLAGS
-0006DCr 1  4C rr rr       jmp exit_show_block
-0006DFr 1               reset_bit0:
-0006DFr 1  07 rr          rmb0 FLAGS
-0006E1r 1               exit_show_block:
-0006E1r 1  60             rts
-0006E2r 1               
-0006E2r 1               
-0006E2r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006E2r 1               ;;
-0006E2r 1               ;;     toggle the TX/RX of SPI on PORTB_2
-0006E2r 1               ;;
-0006E2r 1               
-0006E2r 1               update_spi:
-0006E2r 1               
-0006E2r 1  AF rr 05       bbs2 FLAGS, reset_bit2
-0006E5r 1  A7 rr          smb2 FLAGS
-0006E7r 1  4C rr rr       jmp exit_update_spi
-0006EAr 1               reset_bit2:
-0006EAr 1  27 rr          rmb2 FLAGS
-0006ECr 1  9C 01 50       stz PORTA_2
-0006EFr 1               exit_update_spi:
-0006EFr 1  60             rts
-0006F0r 1               
-0006F0r 1               
-0006F0r 1               
-0006F0r 1               
-0006F0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006F0r 1               ;;
-0006F0r 1               ;;                     INTERRUPT HANDLERS
-0006F0r 1               ;;
-0006F0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006F0r 1               
-0006F0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006F0r 1               ;;
-0006F0r 1               ;;         reset & restart timer
-0006F0r 1               ;;
-0006F0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006F0r 1               
-0006F0r 1               
-0006F0r 1               reset_met:
-0006F0r 1  64 rr          stz HUNDRED_HRS
-0006F2r 1  64 rr          stz TEN_HRS
-0006F4r 1  64 rr          stz TEN_MINUTES
-0006F6r 1  64 rr          stz TEN_SECONDS
-0006F8r 1  64 rr          stz HRS
-0006FAr 1  64 rr          stz MINUTES
-0006FCr 1  64 rr          stz SECONDS
-0006FEr 1  60             rts
-0006FFr 1               
-0006FFr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006FFr 1               ;;
-0006FFr 1               ;;                CB : TEST FUNCTIONS
-0006FFr 1               ;;
-0006FFr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-0006FFr 1               cb1_handler:
-0006FFr 1               
-0006FFr 1                 ;lda #$04
-0006FFr 1  A9 05          lda #$05
-000701r 1  85 rr          sta BEEP_DELAY_TIME
-000703r 1                 ;jsr beep_from_pointer
-000703r 1               
-000703r 1                 ; CONSIDER Change:
-000703r 1                 ;
-000703r 1                 ; jsr beep_from_pointer
-000703r 1                 ; rts
-000703r 1                 ;
-000703r 1                 ; becomes
-000703r 1                 ;
-000703r 1  4C rr rr       jmp beep_from_pointer
-000706r 1               
-000706r 1                 ;rts
-000706r 1               
-000706r 1               cb2_handler:
-000706r 1  A9 14          lda #$14
-000708r 1  85 rr          sta BEEP_DELAY_TIME
-00070Ar 1  A9 02          lda #$02 ; tone # = 100Hz
-00070Cr 1                 ;jsr beep_from_list
-00070Cr 1                 ; CONSIDER Change:
-00070Cr 1                 ;
-00070Cr 1                 ; jsr beep_from-list
-00070Cr 1                 ; rts
-00070Cr 1                 ;
-00070Cr 1                 ; becomes
-00070Cr 1                 ;
-00070Cr 1  4C rr rr       jmp beep_from_list
-00070Fr 1               
-00070Fr 1                 ;rts
-00070Fr 1               
-00070Fr 1               
-00070Fr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00070Fr 1               ;;
-00070Fr 1               ;;                    MONITOR / KEYPAD
-00070Fr 1               ;;
-00070Fr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00070Fr 1               
-00070Fr 1               keypad_handler:
-00070Fr 1               
-00070Fr 1  20 rr rr       jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
-000712r 1  8D rr rr       sta INKEY       ; put the byte value of input into RAM ( $00 )
-000715r 1  AD 00 60       lda PORTB_1       ; check for SHIFT/INSTRUCTION button, 0=pressed, 1=not pressed
-000718r 1  29 80          and #%10000000    ; zero (eq) when button pressed -> check_keypress, otherwise it's not zero, jmp to handle_new_char
-00071Ar 1  F0 03          beq check_keypress ; done this way to get around the limit in size of branch jumps....
-00071Cr 1  4C rr rr       jmp handle_new_char
-00071Fr 1               
-00071Fr 1               check_keypress:
-00071Fr 1               
-00071Fr 1  AD rr rr       lda INKEY
-000722r 1               
-000722r 1               ; choose action of "SHIFTed" key-press
-000722r 1               
-000722r 1               check_a:
-000722r 1               
-000722r 1  C9 0A          cmp #$0A
-000724r 1                 ; move up one memory address and display contents
-000724r 1  D0 09          bne check_b
-000726r 1  20 rr rr       jsr increment_address
-000729r 1  20 rr rr       jsr new_address
-00072Cr 1  4C rr rr       jmp exit_key_irq
-00072Fr 1               
-00072Fr 1               check_b:
-00072Fr 1               
-00072Fr 1  C9 0B          cmp #$0B
-000731r 1                 ; move down one memory address and display contents
-000731r 1  D0 09          bne check_c
-000733r 1  20 rr rr       jsr decrement_address
-000736r 1  20 rr rr       jsr new_address
-000739r 1  4C rr rr       jmp exit_key_irq
-00073Cr 1               
-00073Cr 1               check_c:
-00073Cr 1               
-00073Cr 1  C9 0C          cmp #$0C
-00073Er 1                 ; return to MONITOR
-00073Er 1  D0 13          bne check_d
-000740r 1  07 rr          rmb0 FLAGS
-000742r 1  20 rr rr       jsr lcd_clear
-000745r 1  A9 rr          lda #<splash
-000747r 1  85 rr          sta MESSAGE_POINTER
-000749r 1  A9 rr          lda #>splash
-00074Br 1  85 rr          sta MESSAGE_POINTER + 1
-00074Dr 1  20 rr rr       jsr new_address
-000750r 1  4C rr rr       jmp exit_key_irq
-000753r 1               
-000753r 1               check_d:
-000753r 1               
-000753r 1  C9 0D          cmp #$0D
-000755r 1                 ; move monitor to entered 4-digit memory address
-000755r 1  D0 10          bne check_e
-000757r 1  AD rr rr       lda BYTE
-00075Ar 1  85 rr          sta DUMP_POINTER
-00075Cr 1  AD rr rr       lda BYTE + 1
-00075Fr 1  85 rr          sta DUMP_POINTER + 1
-000761r 1  20 rr rr       jsr new_address
-000764r 1  4C rr rr       jmp exit_key_irq
-000767r 1               
-000767r 1               check_e:
-000767r 1               
-000767r 1  C9 0E          cmp #$0E
-000769r 1                 ; insert (POKE) byte of data in to current memory address, then increment to next address
-000769r 1  D0 10          bne check_f
-00076Br 1  AD rr rr       lda BYTE
-00076Er 1  A0 00          ldy #$00
-000770r 1  91 rr          sta (DUMP_POINTER),y
-000772r 1  20 rr rr       jsr new_address
-000775r 1  20 rr rr       jsr beep
-000778r 1  4C rr rr       jmp exit_key_irq
-00077Br 1               
-00077Br 1               check_f:
-00077Br 1               
-00077Br 1  C9 0F          cmp #$0F
-00077Dr 1                 ; show 8-byte wide block of memory
-00077Dr 1  D0 12          bne check_1
-00077Fr 1  A0 00          ldy #$00
-000781r 1  AD rr rr       lda BYTE
-000784r 1  85 rr          sta DUMP_POINTER
-000786r 1  AD rr rr       lda BYTE + 1
-000789r 1  85 rr          sta DUMP_POINTER + 1
-00078Br 1  20 rr rr       jsr block_address
-00078Er 1  4C rr rr       jmp exit_key_irq
-000791r 1               
-000791r 1               check_1:
-000791r 1               
-000791r 1  C9 01          cmp #$01
-000793r 1                 ; pause SPI Monitor on LCD2
-000793r 1  D0 09          bne check_2
-000795r 1  20 rr rr       jsr beep
-000798r 1  20 rr rr       jsr clock_or_spi
-00079Br 1  4C rr rr       jmp exit_key_irq
-00079Er 1               
-00079Er 1               check_2:
-00079Er 1               
-00079Er 1  C9 02          cmp #$02
-0007A0r 1                 ; reset_clock
-0007A0r 1  D0 09          bne check_3
-0007A2r 1  20 rr rr       jsr beep
-0007A5r 1  20 rr rr       jsr reset_met
-0007A8r 1  4C rr rr       jmp exit_key_irq
-0007ABr 1               
-0007ABr 1               check_3:
-0007ABr 1               
-0007ABr 1  C9 03          cmp #$03
-0007ADr 1  D0 0B          bne check_6
-0007AFr 1  A0 00          ldy #$00
-0007B1r 1  20 rr rr       jsr increment_block
-0007B4r 1  20 rr rr       jsr block_address
-0007B7r 1  4C rr rr       jmp exit_key_irq
-0007BAr 1               
-0007BAr 1               check_6:
-0007BAr 1               
-0007BAr 1  C9 06          cmp #$06
-0007BCr 1  D0 0B          bne check_9
-0007BEr 1  A0 00          ldy #$00
-0007C0r 1  20 rr rr       jsr decrement_block
-0007C3r 1  20 rr rr       jsr block_address
-0007C6r 1  4C rr rr       jmp exit_key_irq
-0007C9r 1               
-0007C9r 1               check_9:
-0007C9r 1               
-0007C9r 1  C9 09          cmp #$09
-0007CBr 1  D0 06          bne check_4
-0007CDr 1  20 rr rr       jsr show_block
-0007D0r 1  4C rr rr       jmp exit_key_irq
-0007D3r 1               
-0007D3r 1               check_4:
-0007D3r 1               
-0007D3r 1  C9 04          cmp #$04
-0007D5r 1                 ; Input 2 new SPI TX Bytes
-0007D5r 1  D0 13          bne check_5
-0007D7r 1  AD rr rr       lda BYTE + 1  ; change from little-endian for SPI TX
-0007DAr 1  85 rr          sta SPI_BYTE
-0007DCr 1  AD rr rr       lda BYTE
-0007DFr 1  85 rr          sta SPI_BYTE + 1
-0007E1r 1  20 rr rr       jsr beep
-0007E4r 1  20 rr rr       jsr new_address
-0007E7r 1                 ;jsr update_spi
-0007E7r 1  4C rr rr       jmp exit_key_irq
-0007EAr 1               
-0007EAr 1               check_5:
-0007EAr 1               
-0007EAr 1  C9 05          cmp #$05
-0007ECr 1                 ; run user code at $3F00
-0007ECr 1  D0 09          bne check_0
-0007EEr 1  20 rr rr       jsr beep
-0007F1r 1  20 00 3F       jsr $3F00
-0007F4r 1  4C rr rr       jmp exit_key_irq
-0007F7r 1               
-0007F7r 1               check_0:
-0007F7r 1  C9 00          cmp #$00
-0007F9r 1                 ; run/pause SPI TX & RX
-0007F9r 1  D0 2A          bne exit_key_irq
-0007FBr 1  20 rr rr       jsr beep
-0007FEr 1  20 rr rr       jsr update_spi
-000801r 1  4C rr rr       jmp exit_key_irq
-000804r 1               
-000804r 1               
-000804r 1               
-000804r 1               handle_new_char:
-000804r 1               
-000804r 1  AD rr rr       lda KEY_PRESS + 2
-000807r 1  8D rr rr       sta KEY_PRESS + 3
-00080Ar 1  AD rr rr       lda KEY_PRESS + 1
-00080Dr 1  8D rr rr       sta KEY_PRESS + 2
-000810r 1  AD rr rr       lda KEY_PRESS
-000813r 1  8D rr rr       sta KEY_PRESS + 1
-000816r 1  AD rr rr       lda INKEY       ; get the new keypress value and...
-000819r 1  8D rr rr       sta KEY_PRESS
-00081Cr 1  20 rr rr       jsr bintohex
-00081Fr 1  20 rr rr       jsr print_char  ; and print it on LCD
-000822r 1  20 rr rr       jsr keys_byte
-000825r 1               
-000825r 1               exit_key_irq:
-000825r 1               
-000825r 1                 ;jsr scan  ; re-enable keypad
-000825r 1                 ; CONSIDER Change:
-000825r 1                 ;
-000825r 1                 ; jsr scan
-000825r 1                 ; rts
-000825r 1                 ;
-000825r 1                 ; becomes
-000825r 1                 ;
-000825r 1  4C rr rr       jmp scan
-000828r 1                 ;rts
-000828r 1               
-000828r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000828r 1               
-000828r 1               nmi:
-000828r 1  48             pha
-000829r 1  DA             phx
-00082Ar 1  5A             phy
+000607r 1  AD rr rr       lda LO_DIGIT
+00060Ar 1  20 rr rr       jsr print_char
+00060Dr 1  B1 rr          lda (DUMP_POINTER),y
+00060Fr 1  C8             iny
+000610r 1  C0 08          cpy #$08
+000612r 1  D0 E8          bne loop1
+000614r 1  A9 20          lda #' '
+000616r 1  20 rr rr       jsr print_char
+000619r 1  A9 48          lda #'H'
+00061Br 1  20 rr rr       jsr print_char
+00061Er 1  A9 65          lda #'e'
+000620r 1  20 rr rr       jsr print_char
+000623r 1  A9 78          lda #'x'
+000625r 1  20 rr rr       jsr print_char
+000628r 1  20 rr rr       jsr lcd_line_4
+00062Br 1  A0 00          ldy #$00
+00062Dr 1               loop2:
+00062Dr 1  A9 20          lda #$20
+00062Fr 1  20 rr rr       jsr print_char
+000632r 1  B1 rr          lda (DUMP_POINTER),y
+000634r 1  20 rr rr       jsr print_char
+000637r 1  C8             iny
+000638r 1  C0 08          cpy #$08
+00063Ar 1  D0 F1          bne loop2
+00063Cr 1  A9 20          lda #' '
+00063Er 1  20 rr rr       jsr print_char
+000641r 1  A9 43          lda #'C'
+000643r 1  20 rr rr       jsr print_char
+000646r 1  A9 68          lda #'h'
+000648r 1  20 rr rr       jsr print_char
+00064Br 1  A9 72          lda #'r'
+00064Dr 1               
+00064Dr 1  4C rr rr       jmp print_char  ; (jsr / rts)
+000650r 1               
+000650r 1                 ;jsr print_char
+000650r 1                 ;rts
+000650r 1               
+000650r 1               
+000650r 1               
+000650r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000650r 1               ;;
+000650r 1               ;;      Monitor function - decrement the selected address
+000650r 1               ;;
+000650r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000650r 1               
+000650r 1               decrement_address:
+000650r 1               
+000650r 1  38             sec
+000651r 1  A5 rr          lda DUMP_POINTER
+000653r 1  E9 01          sbc #$01
+000655r 1  85 rr          sta DUMP_POINTER
+000657r 1  8D rr rr       sta BYTE
+00065Ar 1  A5 rr          lda DUMP_POINTER + 1
+00065Cr 1  E9 00          sbc #$00
+00065Er 1  85 rr          sta DUMP_POINTER + 1
+000660r 1  8D rr rr       sta BYTE + 1
+000663r 1  60             rts
+000664r 1               
+000664r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000664r 1               ;;
+000664r 1               ;;      Monitor function - increment the selected address
+000664r 1               ;;
+000664r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000664r 1               
+000664r 1               increment_address:
+000664r 1               
+000664r 1  18             clc
+000665r 1  A5 rr          lda DUMP_POINTER
+000667r 1  69 01          adc #$01
+000669r 1  85 rr          sta DUMP_POINTER
+00066Br 1  8D rr rr       sta BYTE
+00066Er 1  A5 rr          lda DUMP_POINTER + 1
+000670r 1  69 00          adc #$00
+000672r 1  85 rr          sta DUMP_POINTER + 1
+000674r 1  8D rr rr       sta BYTE + 1
+000677r 1  60             rts
+000678r 1               
+000678r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000678r 1               ;;
+000678r 1               ;;      Monitor function - increment the selected block of  addresses by 8
+000678r 1               ;;
+000678r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000678r 1               
+000678r 1               increment_block:
+000678r 1               
+000678r 1  18             clc
+000679r 1  A5 rr          lda DUMP_POINTER
+00067Br 1  69 08          adc #$08
+00067Dr 1  85 rr          sta DUMP_POINTER
+00067Fr 1  8D rr rr       sta BYTE
+000682r 1  A5 rr          lda DUMP_POINTER + 1
+000684r 1  69 00          adc #$00
+000686r 1  85 rr          sta DUMP_POINTER + 1
+000688r 1  8D rr rr       sta BYTE + 1
+00068Br 1  60             rts
+00068Cr 1               
+00068Cr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00068Cr 1               ;;
+00068Cr 1               ;;      Monitor function - decrement the selected block of  addresses by 8
+00068Cr 1               ;;
+00068Cr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00068Cr 1               
+00068Cr 1               decrement_block:
+00068Cr 1               
+00068Cr 1  38             sec
+00068Dr 1  A5 rr          lda DUMP_POINTER
+00068Fr 1  E9 08          sbc #$08
+000691r 1  85 rr          sta DUMP_POINTER
+000693r 1  8D rr rr       sta BYTE
+000696r 1  A5 rr          lda DUMP_POINTER + 1
+000698r 1  E9 00          sbc #$00
+00069Ar 1  85 rr          sta DUMP_POINTER + 1
+00069Cr 1  8D rr rr       sta BYTE + 1
+00069Fr 1  60             rts
+0006A0r 1               
+0006A0r 1               
+0006A0r 1               
+0006A0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006A0r 1               ;;
+0006A0r 1               ;; use last 4 key presses (as hex bytes) to fill two BYTES
+0006A0r 1               ;;
+0006A0r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006A0r 1               
+0006A0r 1               keys_byte:
+0006A0r 1               
+0006A0r 1  AD rr rr       lda KEY_PRESS + 1
+0006A3r 1  0A             asl
+0006A4r 1  0A             asl
+0006A5r 1  0A             asl
+0006A6r 1  0A             asl
+0006A7r 1  8D rr rr       sta BYTE
+0006AAr 1  AD rr rr       lda KEY_PRESS
+0006ADr 1  0D rr rr       ora BYTE
+0006B0r 1  8D rr rr       sta BYTE
+0006B3r 1  AD rr rr       lda KEY_PRESS + 3
+0006B6r 1  0A             asl
+0006B7r 1  0A             asl
+0006B8r 1  0A             asl
+0006B9r 1  0A             asl
+0006BAr 1  8D rr rr       sta BYTE + 1
+0006BDr 1  AD rr rr       lda KEY_PRESS + 2
+0006C0r 1  0D rr rr       ora BYTE + 1
+0006C3r 1  8D rr rr       sta BYTE + 1
+0006C6r 1  60             rts
+0006C7r 1               
+0006C7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006C7r 1               ;;
+0006C7r 1               ;;    toggle the display/update of SPI Monitor on LCD2
+0006C7r 1               ;;
+0006C7r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006C7r 1               
+0006C7r 1               ;show_clock:
+0006C7r 1               clock_or_spi:
+0006C7r 1  DF rr 10       bbs5 FLAGS, reset_bit5
+0006CAr 1  D7 rr          smb5 FLAGS
+0006CCr 1  A9 rr          lda #<emt
+0006CEr 1  85 rr          sta MESSAGE_POINTER
+0006D0r 1  A9 rr          lda #>emt
+0006D2r 1  85 rr          sta MESSAGE_POINTER + 1
+0006D4r 1  20 rr rr       jsr print2_2
+0006D7r 1  4C rr rr       jmp exit_clock_or_spi
+0006DAr 1               reset_bit5:
+0006DAr 1  57 rr          rmb5 FLAGS
+0006DCr 1                 ;lda #<pause_msg
+0006DCr 1                 ;sta MESSAGE_POINTER
+0006DCr 1                 ;lda #>pause_msg
+0006DCr 1                 ;sta MESSAGE_POINTER + 1
+0006DCr 1                 ;jsr print2_2
+0006DCr 1                 ;jsr update_spi_monitor
+0006DCr 1               exit_clock_or_spi:
+0006DCr 1  60             rts
+0006DDr 1               
+0006DDr 1               
+0006DDr 1               
+0006DDr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006DDr 1               ;;
+0006DDr 1               ;;    toggle the automatic update view of the "8-byte memory block"
+0006DDr 1               ;;
+0006DDr 1               
+0006DDr 1               show_block:
+0006DDr 1               
+0006DDr 1  8F rr 05       bbs0 FLAGS, reset_bit0
+0006E0r 1  87 rr          smb0 FLAGS
+0006E2r 1  4C rr rr       jmp exit_show_block
+0006E5r 1               reset_bit0:
+0006E5r 1  07 rr          rmb0 FLAGS
+0006E7r 1               exit_show_block:
+0006E7r 1  60             rts
+0006E8r 1               
+0006E8r 1               
+0006E8r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006E8r 1               ;;
+0006E8r 1               ;;     toggle the TX/RX of SPI on PORTB_2
+0006E8r 1               ;;
+0006E8r 1               
+0006E8r 1               update_spi:
+0006E8r 1               
+0006E8r 1  AF rr 05       bbs2 FLAGS, reset_bit2
+0006EBr 1  A7 rr          smb2 FLAGS
+0006EDr 1  4C rr rr       jmp exit_update_spi
+0006F0r 1               reset_bit2:
+0006F0r 1  27 rr          rmb2 FLAGS
+0006F2r 1  9C 01 50       stz PORTA_2
+0006F5r 1               exit_update_spi:
+0006F5r 1  60             rts
+0006F6r 1               
+0006F6r 1               
+0006F6r 1               
+0006F6r 1               
+0006F6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006F6r 1               ;;
+0006F6r 1               ;;                     INTERRUPT HANDLERS
+0006F6r 1               ;;
+0006F6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006F6r 1               
+0006F6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006F6r 1               ;;
+0006F6r 1               ;;         reset & restart timer
+0006F6r 1               ;;
+0006F6r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+0006F6r 1               
+0006F6r 1               
+0006F6r 1               reset_met:
+0006F6r 1  64 rr          stz HUNDRED_HRS
+0006F8r 1  64 rr          stz TEN_HRS
+0006FAr 1  64 rr          stz TEN_MINUTES
+0006FCr 1  64 rr          stz TEN_SECONDS
+0006FEr 1  64 rr          stz HRS
+000700r 1  64 rr          stz MINUTES
+000702r 1  64 rr          stz SECONDS
+000704r 1  60             rts
+000705r 1               
+000705r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000705r 1               ;;
+000705r 1               ;;                CB : TEST FUNCTIONS
+000705r 1               ;;
+000705r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000705r 1               cb1_handler:
+000705r 1               
+000705r 1                 ;lda #$04
+000705r 1  A9 05          lda #$05
+000707r 1  85 rr          sta BEEP_DELAY_TIME
+000709r 1                 ;jsr beep_from_pointer
+000709r 1               
+000709r 1                 ; CONSIDER Change:
+000709r 1                 ;
+000709r 1                 ; jsr beep_from_pointer
+000709r 1                 ; rts
+000709r 1                 ;
+000709r 1                 ; becomes
+000709r 1                 ;
+000709r 1  4C rr rr       jmp beep_from_pointer
+00070Cr 1               
+00070Cr 1                 ;rts
+00070Cr 1               
+00070Cr 1               cb2_handler:
+00070Cr 1  A9 14          lda #$14
+00070Er 1  85 rr          sta BEEP_DELAY_TIME
+000710r 1  A9 02          lda #$02 ; tone # = 100Hz
+000712r 1                 ;jsr beep_from_list
+000712r 1                 ; CONSIDER Change:
+000712r 1                 ;
+000712r 1                 ; jsr beep_from-list
+000712r 1                 ; rts
+000712r 1                 ;
+000712r 1                 ; becomes
+000712r 1                 ;
+000712r 1  4C rr rr       jmp beep_from_list
+000715r 1               
+000715r 1                 ;rts
+000715r 1               
+000715r 1               
+000715r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000715r 1               ;;
+000715r 1               ;;                    MONITOR / KEYPAD
+000715r 1               ;;
+000715r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000715r 1               
+000715r 1               keypad_handler:
+000715r 1               
+000715r 1  20 rr rr       jsr get_key     ; READs from PORTA which also re-sets VIA's Interrupt flag
+000718r 1  8D rr rr       sta INKEY       ; put the byte value of input into RAM ( $00 )
+00071Br 1  AD 00 60       lda PORTB_1       ; check for SHIFT/INSTRUCTION button, 0=pressed, 1=not pressed
+00071Er 1  29 80          and #%10000000    ; zero (eq) when button pressed -> check_keypress, otherwise it's not zero, jmp to handle_new_char
+000720r 1  F0 03          beq check_keypress ; done this way to get around the limit in size of branch jumps....
+000722r 1  4C rr rr       jmp handle_new_char
+000725r 1               
+000725r 1               check_keypress:
+000725r 1               
+000725r 1  AD rr rr       lda INKEY
+000728r 1               
+000728r 1               ; choose action of "SHIFTed" key-press
+000728r 1               
+000728r 1               check_a:
+000728r 1               
+000728r 1  C9 0A          cmp #$0A
+00072Ar 1                 ; move up one memory address and display contents
+00072Ar 1  D0 09          bne check_b
+00072Cr 1  20 rr rr       jsr increment_address
+00072Fr 1  20 rr rr       jsr new_address
+000732r 1  4C rr rr       jmp exit_key_irq
+000735r 1               
+000735r 1               check_b:
+000735r 1               
+000735r 1  C9 0B          cmp #$0B
+000737r 1                 ; move down one memory address and display contents
+000737r 1  D0 09          bne check_c
+000739r 1  20 rr rr       jsr decrement_address
+00073Cr 1  20 rr rr       jsr new_address
+00073Fr 1  4C rr rr       jmp exit_key_irq
+000742r 1               
+000742r 1               check_c:
+000742r 1               
+000742r 1  C9 0C          cmp #$0C
+000744r 1                 ; return to MONITOR
+000744r 1  D0 13          bne check_d
+000746r 1  07 rr          rmb0 FLAGS
+000748r 1  20 rr rr       jsr lcd_clear
+00074Br 1  A9 rr          lda #<splash
+00074Dr 1  85 rr          sta MESSAGE_POINTER
+00074Fr 1  A9 rr          lda #>splash
+000751r 1  85 rr          sta MESSAGE_POINTER + 1
+000753r 1  20 rr rr       jsr new_address
+000756r 1  4C rr rr       jmp exit_key_irq
+000759r 1               
+000759r 1               check_d:
+000759r 1               
+000759r 1  C9 0D          cmp #$0D
+00075Br 1                 ; move monitor to entered 4-digit memory address
+00075Br 1  D0 10          bne check_e
+00075Dr 1  AD rr rr       lda BYTE
+000760r 1  85 rr          sta DUMP_POINTER
+000762r 1  AD rr rr       lda BYTE + 1
+000765r 1  85 rr          sta DUMP_POINTER + 1
+000767r 1  20 rr rr       jsr new_address
+00076Ar 1  4C rr rr       jmp exit_key_irq
+00076Dr 1               
+00076Dr 1               check_e:
+00076Dr 1               
+00076Dr 1  C9 0E          cmp #$0E
+00076Fr 1                 ; insert (POKE) byte of data in to current memory address, then increment to next address
+00076Fr 1  D0 10          bne check_f
+000771r 1  AD rr rr       lda BYTE
+000774r 1  A0 00          ldy #$00
+000776r 1  91 rr          sta (DUMP_POINTER),y
+000778r 1  20 rr rr       jsr new_address
+00077Br 1  20 rr rr       jsr beep
+00077Er 1  4C rr rr       jmp exit_key_irq
+000781r 1               
+000781r 1               check_f:
+000781r 1               
+000781r 1  C9 0F          cmp #$0F
+000783r 1                 ; show 8-byte wide block of memory
+000783r 1  D0 12          bne check_1
+000785r 1  A0 00          ldy #$00
+000787r 1  AD rr rr       lda BYTE
+00078Ar 1  85 rr          sta DUMP_POINTER
+00078Cr 1  AD rr rr       lda BYTE + 1
+00078Fr 1  85 rr          sta DUMP_POINTER + 1
+000791r 1  20 rr rr       jsr block_address
+000794r 1  4C rr rr       jmp exit_key_irq
+000797r 1               
+000797r 1               check_1:
+000797r 1               
+000797r 1  C9 01          cmp #$01
+000799r 1                 ; pause SPI Monitor on LCD2
+000799r 1  D0 09          bne check_2
+00079Br 1  20 rr rr       jsr beep
+00079Er 1  20 rr rr       jsr clock_or_spi
+0007A1r 1  4C rr rr       jmp exit_key_irq
+0007A4r 1               
+0007A4r 1               check_2:
+0007A4r 1               
+0007A4r 1  C9 02          cmp #$02
+0007A6r 1                 ; reset_clock
+0007A6r 1  D0 09          bne check_3
+0007A8r 1  20 rr rr       jsr beep
+0007ABr 1  20 rr rr       jsr reset_met
+0007AEr 1  4C rr rr       jmp exit_key_irq
+0007B1r 1               
+0007B1r 1               check_3:
+0007B1r 1               
+0007B1r 1  C9 03          cmp #$03
+0007B3r 1  D0 0B          bne check_6
+0007B5r 1  A0 00          ldy #$00
+0007B7r 1  20 rr rr       jsr increment_block
+0007BAr 1  20 rr rr       jsr block_address
+0007BDr 1  4C rr rr       jmp exit_key_irq
+0007C0r 1               
+0007C0r 1               check_6:
+0007C0r 1               
+0007C0r 1  C9 06          cmp #$06
+0007C2r 1  D0 0B          bne check_9
+0007C4r 1  A0 00          ldy #$00
+0007C6r 1  20 rr rr       jsr decrement_block
+0007C9r 1  20 rr rr       jsr block_address
+0007CCr 1  4C rr rr       jmp exit_key_irq
+0007CFr 1               
+0007CFr 1               check_9:
+0007CFr 1               
+0007CFr 1  C9 09          cmp #$09
+0007D1r 1  D0 06          bne check_4
+0007D3r 1  20 rr rr       jsr show_block
+0007D6r 1  4C rr rr       jmp exit_key_irq
+0007D9r 1               
+0007D9r 1               check_4:
+0007D9r 1               
+0007D9r 1  C9 04          cmp #$04
+0007DBr 1                 ; Input 2 new SPI TX Bytes
+0007DBr 1  D0 13          bne check_5
+0007DDr 1  AD rr rr       lda BYTE + 1  ; change from little-endian for SPI TX
+0007E0r 1  85 rr          sta SPI_BYTE
+0007E2r 1  AD rr rr       lda BYTE
+0007E5r 1  85 rr          sta SPI_BYTE + 1
+0007E7r 1  20 rr rr       jsr beep
+0007EAr 1  20 rr rr       jsr new_address
+0007EDr 1                 ;jsr update_spi
+0007EDr 1  4C rr rr       jmp exit_key_irq
+0007F0r 1               
+0007F0r 1               check_5:
+0007F0r 1               
+0007F0r 1  C9 05          cmp #$05
+0007F2r 1                 ; run user code at $3F00
+0007F2r 1  D0 09          bne check_0
+0007F4r 1  20 rr rr       jsr beep
+0007F7r 1  20 00 3F       jsr $3F00
+0007FAr 1  4C rr rr       jmp exit_key_irq
+0007FDr 1               
+0007FDr 1               check_0:
+0007FDr 1  C9 00          cmp #$00
+0007FFr 1                 ; run/pause SPI TX & RX
+0007FFr 1  D0 2A          bne exit_key_irq
+000801r 1  20 rr rr       jsr beep
+000804r 1  20 rr rr       jsr update_spi
+000807r 1  4C rr rr       jmp exit_key_irq
+00080Ar 1               
+00080Ar 1               
+00080Ar 1               
+00080Ar 1               handle_new_char:
+00080Ar 1               
+00080Ar 1  AD rr rr       lda KEY_PRESS + 2
+00080Dr 1  8D rr rr       sta KEY_PRESS + 3
+000810r 1  AD rr rr       lda KEY_PRESS + 1
+000813r 1  8D rr rr       sta KEY_PRESS + 2
+000816r 1  AD rr rr       lda KEY_PRESS
+000819r 1  8D rr rr       sta KEY_PRESS + 1
+00081Cr 1  AD rr rr       lda INKEY       ; get the new keypress value and...
+00081Fr 1  8D rr rr       sta KEY_PRESS
+000822r 1  20 rr rr       jsr bintohex
+000825r 1  20 rr rr       jsr print_char  ; and print it on LCD
+000828r 1  20 rr rr       jsr keys_byte
 00082Br 1               
-00082Br 1  2C 04 48       bit T1CL_3      ; reset interrupt flag
-00082Er 1  20 rr rr       jsr rtc
-000831r 1  4C rr rr       jmp exit_nmi
-000834r 1               
-000834r 1               exit_nmi:
-000834r 1  7A             ply
-000835r 1  FA             plx
-000836r 1  68             pla
-000837r 1  40             rti
-000838r 1               
-000838r 1  40             rti
-000839r 1               
-000839r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000839r 1               ;;
-000839r 1               ;;    interrupt is triggered by HIGH edge on VIA CA1 pin
-000839r 1               ;;     PORTA low nibble (keypad columns) inputs are diode ORed to CA1
-000839r 1               ;;
-000839r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000839r 1               
-000839r 1               irq:
-000839r 1               
-000839r 1               ; put registers on the stack while handling the IRQ
-000839r 1               
-000839r 1  48             pha
-00083Ar 1  DA             phx
-00083Br 1  5A             phy
-00083Cr 1               
-00083Cr 1               ;  find responsible hardware
-00083Cr 1               
-00083Cr 1               ;  Is it VIA_1?
-00083Cr 1               
-00083Cr 1  AD 0D 60       lda IFR_1       ; if IFR_1 has Bit7 set (ie sign=NEGATIVE) then it IS the source of the interrupt
-00083Fr 1  10 25          bpl next_device ; if it's not set (ie sign=POSITIVE) then branch to test the next possible device
-000841r 1               
-000841r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000841r 1               ;;
-000841r 1               ;; IFR Flags
-000841r 1               ;; B7  B6  B5  B4  B3  B2  B1  B0
-000841r 1               ;; IRQ TI1 TI2 CB1 CB2 SR CA1 CA2
-000841r 1               ;;
-000841r 1               ;; Interrupt source is found by sequentially shifting IFR bit left to put bit-of-interest into the CARRY place
-000841r 1               ;; and then branching based on whether CARRY is SET or not
-000841r 1               ;;
-000841r 1               ;; Only add tests for IRQ sources in use, and adjust the ASLs in each test as necessary
-000841r 1               ;;
-000841r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-000841r 1               
-000841r 1               test_cb1:
-000841r 1  0A             asl
-000842r 1  0A             asl
-000843r 1  0A             asl
-000844r 1  0A             asl
-000845r 1  90 09          bcc test_cb2
-000847r 1  2C 00 60       bit PORTB_1
-00084Ar 1  20 rr rr       jsr cb1_handler
-00084Dr 1  4C rr rr       jmp exit_irq
-000850r 1               
-000850r 1               test_cb2:
-000850r 1  0A             asl
-000851r 1  90 09          bcc test_ca1
-000853r 1  2C 00 60       bit PORTB_1
-000856r 1  20 rr rr       jsr cb2_handler
-000859r 1  4C rr rr       jmp exit_irq
-00085Cr 1               
-00085Cr 1               test_ca1:
-00085Cr 1               
-00085Cr 1  0A             asl           ; shift CA1 bit into the CARRY bit & test
-00085Dr 1  0A             asl
-00085Er 1  90 06          bcc exit_irq        ; carry clear = leave
-000860r 1  20 rr rr       jsr keypad_handler  ; carry not clear = handle the CA1 interrupt (keypad)
-000863r 1  4C rr rr       jmp exit_irq
-000866r 1               
-000866r 1               
-000866r 1               next_device:
-000866r 1               
-000866r 1               exit_irq:
-000866r 1               
-000866r 1  7A             ply
-000867r 1  FA             plx
-000868r 1  68             pla
-000869r 1  40             rti
-00086Ar 1               
-00086Ar 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-00086Ar 1               ;;
-00086Ar 1               ;;      String and data byte variables
-00086Ar 1               ;;
-00086Ar 1               ;;
-00086Ar 1               ;;
-00086Ar 1               
-00086Ar 1               ;pause_msg: .asciiz "Mark Time     "
-00086Ar 1  3C 73 68 69  start_msg: .asciiz "<shift>+C to start"
-00086Er 1  66 74 3E 2B  
-000872r 1  43 20 74 6F  
-00087Dr 1  56 69 65 77  new_address_msg: .asciiz "View/Edit Memory"
-000881r 1  2F 45 64 69  
-000885r 1  74 20 4D 65  
-00088Er 1  38 20 42 79  block_address_msg: .asciiz "8 Byte view"
-000892r 1  74 65 20 76  
-000896r 1  69 65 77 00  
-00089Ar 1  2E 2E 2E 53  title: .asciiz "...Shed Brain v1..."
-00089Er 1  68 65 64 20  
-0008A2r 1  42 72 61 69  
-0008AEr 1  4D 69 73 73  emt: .asciiz "Mission Time    "
-0008B2r 1  69 6F 6E 20  
-0008B6r 1  54 69 6D 65  
-0008BFr 1  73 68 65 64  splash: .asciiz "shed> "
-0008C3r 1  3E 20 00     
-0008C6r 1  42 65 67 69  mem_start_msg: .asciiz "Begin RAM Test"
-0008CAr 1  6E 20 52 41  
-0008CEr 1  4D 20 54 65  
-0008D5r 1  52 41 4D 20  mem_pass_msg: .asciiz "RAM Test Pass"
-0008D9r 1  54 65 73 74  
-0008DDr 1  20 50 61 73  
-0008E3r 1  52 41 4D 20  mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
-0008E7r 1  54 65 73 74  
-0008EBr 1  20 31 20 46  
-0008F3r 1  52 41 4D 20  mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
-0008F7r 1  54 65 73 74  
-0008FBr 1  20 32 20 46  
-000903r 1               
-000903r 1  54 68 69 73  userPrompt: .asciiz "This is shed! "
-000907r 1  20 69 73 20  
-00090Br 1  73 68 65 64  
-000912r 1               
-000912r 1  64 rr A9 20  userProg: .byte $64, MESSAGE_POINTER, $A9, $20, $85, MESSAGE_POINTER + 1, $20, <print4, >print4, $60, $00
-000916r 1  85 rr 20 rr  
-00091Ar 1  rr 60 00     
-00091Dr 1               
-00091Dr 1  01 03 06 0C  kitLeds: .byte $01, $03, $06, $0C, $18, $30, $60, $C0, $80, $C0, $60, $30, $18, $0C, $06, $03, $01
-000921r 1  18 30 60 C0  
-000925r 1  80 C0 60 30  
-00092Er 1               
-00092Er 1               
-00092Er 1               ; Reset/IRQ vectors
-00092Er 1               
-00092Er 1               .segment "VECTORS"
+00082Br 1               exit_key_irq:
+00082Br 1               
+00082Br 1                 ;jsr scan  ; re-enable keypad
+00082Br 1                 ; CONSIDER Change:
+00082Br 1                 ;
+00082Br 1                 ; jsr scan
+00082Br 1                 ; rts
+00082Br 1                 ;
+00082Br 1                 ; becomes
+00082Br 1                 ;
+00082Br 1  4C rr rr       jmp scan
+00082Er 1                 ;rts
+00082Er 1               
+00082Er 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00082Er 1               
+00082Er 1               nmi:
+00082Er 1  48             pha
+00082Fr 1  DA             phx
+000830r 1  5A             phy
+000831r 1               
+000831r 1  2C 04 48       bit T1CL_3      ; reset interrupt flag
+000834r 1  20 rr rr       jsr rtc
+000837r 1  4C rr rr       jmp exit_nmi
+00083Ar 1               
+00083Ar 1               exit_nmi:
+00083Ar 1  7A             ply
+00083Br 1  FA             plx
+00083Cr 1  68             pla
+00083Dr 1  40             rti
+00083Er 1               
+00083Er 1  40             rti
+00083Fr 1               
+00083Fr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00083Fr 1               ;;
+00083Fr 1               ;;    interrupt is triggered by HIGH edge on VIA CA1 pin
+00083Fr 1               ;;     PORTA low nibble (keypad columns) inputs are diode ORed to CA1
+00083Fr 1               ;;
+00083Fr 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+00083Fr 1               
+00083Fr 1               irq:
+00083Fr 1               
+00083Fr 1               ; put registers on the stack while handling the IRQ
+00083Fr 1               
+00083Fr 1  48             pha
+000840r 1  DA             phx
+000841r 1  5A             phy
+000842r 1               
+000842r 1               ;  find responsible hardware
+000842r 1               
+000842r 1               ;  Is it VIA_1?
+000842r 1               
+000842r 1  AD 0D 60       lda IFR_1       ; if IFR_1 has Bit7 set (ie sign=NEGATIVE) then it IS the source of the interrupt
+000845r 1  10 25          bpl next_device ; if it's not set (ie sign=POSITIVE) then branch to test the next possible device
+000847r 1               
+000847r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000847r 1               ;;
+000847r 1               ;; IFR Flags
+000847r 1               ;; B7  B6  B5  B4  B3  B2  B1  B0
+000847r 1               ;; IRQ TI1 TI2 CB1 CB2 SR CA1 CA2
+000847r 1               ;;
+000847r 1               ;; Interrupt source is found by sequentially shifting IFR bit left to put bit-of-interest into the CARRY place
+000847r 1               ;; and then branching based on whether CARRY is SET or not
+000847r 1               ;;
+000847r 1               ;; Only add tests for IRQ sources in use, and adjust the ASLs in each test as necessary
+000847r 1               ;;
+000847r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000847r 1               
+000847r 1               test_cb1:
+000847r 1  0A             asl
+000848r 1  0A             asl
+000849r 1  0A             asl
+00084Ar 1  0A             asl
+00084Br 1  90 09          bcc test_cb2
+00084Dr 1  2C 00 60       bit PORTB_1
+000850r 1  20 rr rr       jsr cb1_handler
+000853r 1  4C rr rr       jmp exit_irq
+000856r 1               
+000856r 1               test_cb2:
+000856r 1  0A             asl
+000857r 1  90 09          bcc test_ca1
+000859r 1  2C 00 60       bit PORTB_1
+00085Cr 1  20 rr rr       jsr cb2_handler
+00085Fr 1  4C rr rr       jmp exit_irq
+000862r 1               
+000862r 1               test_ca1:
+000862r 1               
+000862r 1  0A             asl           ; shift CA1 bit into the CARRY bit & test
+000863r 1  0A             asl
+000864r 1  90 06          bcc exit_irq        ; carry clear = leave
+000866r 1  20 rr rr       jsr keypad_handler  ; carry not clear = handle the CA1 interrupt (keypad)
+000869r 1  4C rr rr       jmp exit_irq
+00086Cr 1               
+00086Cr 1               
+00086Cr 1               next_device:
+00086Cr 1               
+00086Cr 1               exit_irq:
+00086Cr 1               
+00086Cr 1  7A             ply
+00086Dr 1  FA             plx
+00086Er 1  68             pla
+00086Fr 1  40             rti
+000870r 1               
+000870r 1               ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+000870r 1               ;;
+000870r 1               ;;      String and data byte variables
+000870r 1               ;;
+000870r 1               ;;
+000870r 1               ;;
+000870r 1               
+000870r 1               ;pause_msg: .asciiz "Mark Time     "
+000870r 1  3C 73 68 69  start_msg: .asciiz "<shift>+C to start"
+000874r 1  66 74 3E 2B  
+000878r 1  43 20 74 6F  
+000883r 1  56 69 65 77  new_address_msg: .asciiz "View/Edit Memory"
+000887r 1  2F 45 64 69  
+00088Br 1  74 20 4D 65  
+000894r 1  38 20 42 79  block_address_msg: .asciiz "8 Byte view"
+000898r 1  74 65 20 76  
+00089Cr 1  69 65 77 00  
+0008A0r 1  2E 2E 2E 53  title: .asciiz "...Shed Brain v1..."
+0008A4r 1  68 65 64 20  
+0008A8r 1  42 72 61 69  
+0008B4r 1  4D 69 73 73  emt: .asciiz "Mission Time    "
+0008B8r 1  69 6F 6E 20  
+0008BCr 1  54 69 6D 65  
+0008C5r 1  73 68 65 64  splash: .asciiz "shed> "
+0008C9r 1  3E 20 00     
+0008CCr 1  42 65 67 69  mem_start_msg: .asciiz "Begin RAM Test"
+0008D0r 1  6E 20 52 41  
+0008D4r 1  4D 20 54 65  
+0008DBr 1  52 41 4D 20  mem_pass_msg: .asciiz "RAM Test Pass"
+0008DFr 1  54 65 73 74  
+0008E3r 1  20 50 61 73  
+0008E9r 1  52 41 4D 20  mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
+0008EDr 1  54 65 73 74  
+0008F1r 1  20 31 20 46  
+0008F9r 1  52 41 4D 20  mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
+0008FDr 1  54 65 73 74  
+000901r 1  20 32 20 46  
+000909r 1               
+000909r 1  54 68 69 73  userPrompt: .asciiz "This is shed! "
+00090Dr 1  20 69 73 20  
+000911r 1  73 68 65 64  
+000918r 1               
+000918r 1  64 rr A9 20  userProg: .byte $64, MESSAGE_POINTER, $A9, $20, $85, MESSAGE_POINTER + 1, $20, <print4, >print4, $60, $00
+00091Cr 1  85 rr 20 rr  
+000920r 1  rr 60 00     
+000923r 1               
+000923r 1  01 03 06 0C  kitLeds: .byte $01, $03, $06, $0C, $18, $30, $60, $C0, $80, $C0, $60, $30, $18, $0C, $06, $03, $01
+000927r 1  18 30 60 C0  
+00092Br 1  80 C0 60 30  
+000934r 1               
+000934r 1               
+000934r 1               ; Reset/IRQ vectors
+000934r 1               
+000934r 1               .segment "VECTORS"
 000000r 1               
 000000r 1  rr rr          .word nmi
 000002r 1  rr rr          .word reset

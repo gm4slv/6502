@@ -303,32 +303,46 @@ loop:
 ;;
 ;;   bit7    | bit6   | bit5    |  bit4 | bit3 | bit2   | bit1 | bit0
 ;; ==========|========|=========|=======|======|========|======|===========
-;;   beep    |        | spi(s)  |       |      | spi    |      | mem block
+;;   beep    |        | spi(0)  |       |      | spi    |      | mem block
 ;;   sound   |        | or      |       |      | tx/rx  |      | view
-;;   started |        | clock(r)|       |      | active |      | update
+;;   started |        | clock(1)|       |      | active |      | update
 ;;   
          
 check_flags:
 
+lda FLAGS
+sta PORTB_3
+
 flag_zero:
-  bbr0 FLAGS, flag_two
+  bbr0 FLAGS, flag_one
   jsr update_block_address
+
+flag_one:
+
 flag_two:
-  bbr2 FLAGS, flag_five
+  bbr2 FLAGS, flag_three
   jsr spi_portb_2
-flag_five:
-  bbr5 FLAGS, no_flag_five
-  
-  jsr clock_time
-no_flag_five:
-  jsr update_spi_monitor
-flag_seven:
-  bbr7 FLAGS, flag_three
-  jsr check_beep
+
 flag_three:
+
+flag_four:
+
+flag_six:
+
+flag_seven:
+  bbr7 FLAGS, flag_five
+  jsr check_beep
+
+flag_five:
+  bbr5 FLAGS, no_flag_five  
+  jsr clock_time
   
   rts
-
+  
+no_flag_five:
+  jsr update_spi_monitor
+  rts
+  
 ;;;;;;;;;;
 ;;;;;;;;;;
 ;;;
