@@ -51,6 +51,13 @@ TEMP2:            .res 1
 HI_DIGIT:         .res 1
 LO_DIGIT:         .res 1
 
+VALUE:            .res 2
+MOD10:            .res 2
+num_message:      .res 6
+
+
+
+
 spiin: .res 1
 spiout: .res 1
 
@@ -70,6 +77,7 @@ SPI_RX_BYTE:      .res 2
 .include "../includes/functions.inc"
 .include "../includes/rtc.inc"
 .include "../includes/spi_trx_dev.inc"
+.include "../includes/printval.inc"
 
 
 
@@ -149,7 +157,12 @@ init_variables:
   lda #>title
   sta MESSAGE_POINTER + 1
   jsr print1
-
+  stz MOD10
+  stz MOD10 + 1
+  stz VALUE
+  stz VALUE + 1
+  
+  
 
 memory_test:
 
@@ -419,7 +432,7 @@ update_spi_monitor:
   sec
   lda TICKS
   sbc CLOCK_LAST
-  cmp #50
+  cmp #100
   bcs @do_update
   rts
 @do_update:
@@ -427,16 +440,16 @@ update_spi_monitor:
   jsr lcd_2_clear
   
   jsr lcd_2_line_1
-  lda #'s'
-  jsr print_2_char
+  ;lda #'s'
+  ;jsr print_2_char
   
   
   lda #'T'
   jsr print_2_char
   lda #'X'
   jsr print_2_char
-  lda #':'
-  jsr print_2_char
+  ;lda #':'
+  ;jsr print_2_char
   lda #' '
   jsr print_2_char
   
@@ -448,6 +461,7 @@ update_spi_monitor:
   lda #'$'
   jsr print_2_char
   lda SPI_TX_BYTE
+  
   jsr bintohex_2
   lda #' '
   jsr print_2_char
@@ -463,15 +477,15 @@ update_spi_monitor:
   
   
   jsr lcd_2_line_2
-  lda #'s'
- 
-  jsr print_2_char
+  ;lda #'s'
+  ;jsr print_2_char
+  
   lda #'R'
   jsr print_2_char
   lda #'X'
   jsr print_2_char
-  lda #':'
-  jsr print_2_char
+  ;lda #':'
+  ;jsr print_2_char
   lda #' '
   jsr print_2_char
   
@@ -482,17 +496,41 @@ update_spi_monitor:
   lda #'$'
   jsr print_2_char
   lda SPI_RX_BYTE
+  
   jsr bintohex_2
+  
   lda #' '
   jsr print_2_char
+
+  
   ;lda SPI_RX_BYTE + 1
   ;jsr print_2_char
   ;lda #' '
   ;jsr print_2_char
   lda #'$'
   jsr print_2_char
+  
   lda SPI_RX_BYTE + 1
   jsr bintohex_2
+  
+  lda #' '
+  jsr print_2_char
+  
+  lda SPI_RX_BYTE + 1
+  sta VALUE
+  lda SPI_RX_BYTE
+  sta VALUE + 1
+  jsr print_value
+  
+  ;; and print it
+  
+ 
+  lda #<num_message
+  sta MESSAGE_POINTER
+  lda #>num_message
+  sta MESSAGE_POINTER + 1
+  ldy #0
+  jsr line2
   
   
   
@@ -591,6 +629,8 @@ print_address:
   jsr print_char
   lda #' '
   jsr print_char
+  lda #'$'
+  jsr print_char
   ldy #$00
   lda (DUMP_POINTER),y
   jsr bintohex
@@ -602,6 +642,25 @@ print_address:
   jsr print_char
   lda (DUMP_POINTER),y
   jsr print_char
+  
+  lda #' '
+  jsr print_char
+  
+  ;;;;;;;;;;;;;;
+  ;;
+  lda (DUMP_POINTER),y
+  sta VALUE
+  stz VALUE + 1
+  jsr print_value
+  lda #<num_message
+  sta MESSAGE_POINTER
+  lda #>num_message
+  sta MESSAGE_POINTER + 1
+  ldy #0
+  jsr line
+  
+  ;;;;;;;;;;;;;;;;;;;;;
+  
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
@@ -905,7 +964,7 @@ cb1_handler:
   ;rts
   
 cb2_handler:
-  lda #$14
+  lda #$40
   sta BEEP_DELAY_TIME
   lda #$02 ; tone # = 100Hz
   ;jsr beep_from_list
@@ -1212,7 +1271,8 @@ exit_irq:
 
 ;pause_msg: .asciiz "Mark Time     "
 start_msg: .asciiz "<shift>+C to start"
-new_address_msg: .asciiz "View/Edit Memory"
+new_address_msg: .asciiz "$addr $dd C Dec"
+;new_address_msg: .asciiz "View/Edit Memory"
 block_address_msg: .asciiz "8 Byte view"
 title: .asciiz "...Shed Brain v1..."
 emt: .asciiz "Mission Time    "
