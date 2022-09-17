@@ -1,12 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;
 ;;
-;;    Initial Bit-banging SPI transmit 
 ;;    from Ben Eater's video
 ;;
-;;    each TX bit is individually coded....
-;;
-;;    nothing is done to read from MISO yet
-
 
 .code
 
