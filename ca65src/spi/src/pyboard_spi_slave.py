@@ -29,7 +29,8 @@ For example, sending b'34' will return b'X6' and will toggle LED number 4
 
 import pyb
 import time
-
+rtc = pyb.RTC()
+rtc.datetime((2000, 1, 1, 1, 1, 0, 0, 0))
 @micropython.viper
 def bit_bang_spi(sclk, mosi, miso) -> int:
     #out_val = int(ord('X'))
