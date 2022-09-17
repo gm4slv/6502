@@ -1,0 +1,13 @@
+This is the version under development at the moment.
+
+Features :
+
+2 LCD displays
+audio Beeps
+SPI transceive - retrieving and displaying a real-time seconds count (2 bytes) from a PyBoard
+View and Edit memory
+Running "mission time" clock which can be reset
+SPI transceive can be turned on/off
+Display on 2nd LCD can be toggled between "Mission Time" and "SPI Data"
+User runnable machine code subroutine can be entered at $3F00 onward
+
