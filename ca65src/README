@@ -1,0 +1,9 @@
+I've switched over to using CA65 as my assembler.
+
+All code updates will now be done in the CA65SRC directory. 
+
+I tend to spin off a new project directory once I've added enough changes
+in the "current" project, leaving the old one behind as a fallback. 
+
+Eventually I should start managing things properly.....?
+
