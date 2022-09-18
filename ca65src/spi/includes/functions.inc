@@ -135,7 +135,7 @@ beep_from_pointer:  ; put the 2 bytes for the required count into BEEP_POINTER a
   ;rts  
 
 beep2: ; high/low beep for boot-up success notification
-
+  
 ; 1kHz
   lda #<count_1k
   sta T1CL_2
@@ -146,13 +146,15 @@ beep2: ; high/low beep for boot-up success notification
   sta ACR_2
   
   jsr beep_delay
-
+  ;jsr beep
 ; 800Hz
   lda #<count_800
   sta T1CL_2
   lda #>count_800
   sta T1CH_2
-
+  
+  jsr beep_delay
+  
   lda #%01000000
   sta ACR_2
   rts  

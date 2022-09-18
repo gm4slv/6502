@@ -103,11 +103,7 @@ reset:
   txs
   cli      ; interrupts ON
   
-  ;; IOPORTS
-  jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
-  jsr via_2_init ; set-up VIA_2 for general I/O
-  jsr via_3_init ; set-up VIA_3 for general I/O
-
+  
   ;; LCD 
   jsr lcd_start ; set-up various features of lcd 
   jsr lcd_2_start ; set-up various features of lcd 
@@ -206,6 +202,14 @@ next_page:
 
 done_ram:
   
+  ;; IOPORTS - initialize after MEM check.
+  ;; prevents spurious beeps until everthing is ready...
+  
+  jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
+  jsr via_2_init ; set-up VIA_2 for general I/O
+  jsr via_3_init ; set-up VIA_3 for general I/O
+ 
+  ;; now make a beep-boop
   jsr beep2
   
   lda #<mem_pass_msg
@@ -224,11 +228,12 @@ done_ram:
   jsr print4
   
   jsr lcd_2_clear
-  ;lda #<emt
-  ;sta MESSAGE_POINTER
-  ;lda #>emt
-  ;sta MESSAGE_POINTER + 1
-  ;jsr print2_2
+  lda #<emt
+  sta MESSAGE_POINTER
+  lda #>emt
+  sta MESSAGE_POINTER + 1
+  jsr print2_2
+  
   jmp user_ram
 
 mem_fail_1:
@@ -374,7 +379,7 @@ spi_portb_2:
   sec
   lda TICKS
   sbc SPI_LAST
-  cmp #50 
+  cmp #100 
   bcs @spi_tx_rx
   rts
   ;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -474,7 +479,19 @@ update_spi_monitor:
   lda SPI_TX_BYTE + 1
   jsr bintohex_2
   
+  lda #' '
+  jsr print_2_char
+  lda #$7F
+  jsr print_2_char
+  lda #'S'
+  jsr print_2_char
+  lda #'P'
+  jsr print_2_char
+  lda #'I'
+  jsr print_2_char
   
+  lda #$7E
+  jsr print_2_char
   
   jsr lcd_2_line_2
   ;lda #'s'
@@ -660,12 +677,12 @@ print_address:
   jsr line
   
   ;;;;;;;;;;;;;;;;;;;;;
-  
+new_cursor:
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
   sta MESSAGE_POINTER + 1
-  jmp print3    ; (jsr / rts)
+  jmp print4   ; (jsr / rts)
   ;jsr print3   ; add cursor after re-writing the address/data line
   ;rts
 
@@ -992,7 +1009,8 @@ keypad_handler:
   sta INKEY       ; put the byte value of input into RAM ( $00 )   
   lda PORTB_1       ; check for SHIFT/INSTRUCTION button, 0=pressed, 1=not pressed
   and #%10000000    ; zero (eq) when button pressed -> check_keypress, otherwise it's not zero, jmp to handle_new_char
-  beq check_keypress ; done this way to get around the limit in size of branch jumps....
+  beq check_keypress; done this way to get around the limit in size of branch jumps....
+  jsr beep_from_pointer
   jmp handle_new_char
   
 check_keypress:
@@ -1007,6 +1025,7 @@ check_a:
   ; move up one memory address and display contents
   bne check_b     
   jsr increment_address
+  jsr beep
   jsr new_address
   jmp exit_key_irq
 
@@ -1016,6 +1035,7 @@ check_b:
   ; move down one memory address and display contents
   bne check_c
   jsr decrement_address
+  jsr beep
   jsr new_address
   jmp exit_key_irq
 
@@ -1026,10 +1046,11 @@ check_c:
   bne check_d
   rmb0 FLAGS
   jsr lcd_clear
-  lda #<splash
-  sta MESSAGE_POINTER
-  lda #>splash
-  sta MESSAGE_POINTER + 1  
+  ;lda #<splash
+  ;sta MESSAGE_POINTER
+  ;lda #>splash
+  ;sta MESSAGE_POINTER + 1  
+  jsr beep
   jsr new_address
   jmp exit_key_irq
 
@@ -1042,6 +1063,7 @@ check_d:
   sta DUMP_POINTER
   lda BYTE + 1
   sta DUMP_POINTER + 1
+  jsr beep
   jsr new_address
   jmp exit_key_irq
 
@@ -1053,8 +1075,8 @@ check_e:
   lda BYTE
   ldy #$00
   sta (DUMP_POINTER),y
+  jsr beep  
   jsr new_address
-  jsr beep
   jmp exit_key_irq
 
 check_f:
@@ -1067,6 +1089,7 @@ check_f:
   sta DUMP_POINTER
   lda BYTE + 1
   sta DUMP_POINTER + 1
+  jsr beep
   jsr block_address
   jmp exit_key_irq
 
@@ -1094,6 +1117,7 @@ check_3:
   bne check_6
   ldy #$00
   jsr increment_block
+  jsr beep
   jsr block_address
   jmp exit_key_irq
 
@@ -1103,6 +1127,7 @@ check_6:
   bne check_9
   ldy #$00
   jsr decrement_block
+  jsr beep
   jsr block_address
   jmp exit_key_irq
 
@@ -1110,6 +1135,7 @@ check_9:
 
   cmp #$09
   bne check_4
+  jsr beep
   jsr show_block
   jmp exit_key_irq
 
