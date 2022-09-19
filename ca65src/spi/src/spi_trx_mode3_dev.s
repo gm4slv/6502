@@ -76,7 +76,7 @@ SPI_RX_BYTE:      .res 2
 .include "../includes/getkey.inc"
 .include "../includes/functions.inc"
 .include "../includes/rtc.inc"
-.include "../includes/spi_trx_mode0.inc"
+.include "../includes/spi_trx_mode3.inc"
 .include "../includes/printval.inc"
 
 
@@ -220,6 +220,9 @@ done_ram:
   
   smb5 FLAGS ; SPI Monitor or Clock on LCD2
   smb2 FLAGS ; SPI TX/RX from VIA_2 port A
+  
+  ;lda #SCK
+  ;tsb SPI_PORT
   
   lda #<start_msg
   sta MESSAGE_POINTER
@@ -384,26 +387,41 @@ spi_portb_2:
   rts
   ;;;;;;;;;;;;;;;;;;;;;;;;;;
 @spi_tx_rx:
-  stz SPI_PORT
+  
+  ;stz SPI_PORT
+  
+  
+  lda #SCK
+  sta SPI_PORT
+  
   lda SPI_BYTE
   sta SPI_TX_BYTE
   jsr spi_transceive
   sta SPI_RX_BYTE
   ;lda #$39
-  ;jsr spi_transceive
-  lda #CS
-  sta SPI_PORT
+ 
   ;;;;;;;;;;;;;;;;;;;;;;;;;
-  stz SPI_PORT
+  
+  ;stz SPI_PORT
+  ;stz SPI_PORT
+  
+  
+  
+  lda #SCK
+  ora SPI_PORT
+  
+  
   lda SPI_BYTE + 1
   sta SPI_TX_BYTE + 1
   jsr spi_transceive
   sta SPI_RX_BYTE + 1
   ;lda #$39
   ;jsr spi_transceive
-  lda #CS
-  sta SPI_PORT
   
+  ;pha
+  lda #CS
+  trb SPI_PORT
+  ;pla
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   lda TICKS

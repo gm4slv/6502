@@ -1,7 +1,7 @@
 
-ROM_NAME=spi_trx_dev
+ROM_NAME=spi_trx_mode3_dev
 
-ASM_SOURCES=spi_trx_dev.s
+ASM_SOURCES=spi_trx_mode3_dev.s
 
 FIRMWARE_CFG=../../../ca65src/firmware.cfg
 
