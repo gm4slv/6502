@@ -382,73 +382,48 @@ spi_portb_2:
   sec
   lda TICKS
   sbc SPI_LAST
-  cmp #100 
+  cmp #10 
   bcs @spi_tx_rx
   rts
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @spi_tx_rx:
   
-  ;stz SPI_PORT
-  
-  
+  ;; CLOCK HIGH IDLE CPOL = 1
+  ;; MODE 2 and MODE 3
+  ;; PUT A BRANCH HERE TO MAKE SWAPPING MODES EASIER?
+  ;;
   lda #SCK
-  sta SPI_PORT
+  tsb SPI_PORT
+  
+  ;; for ds1306 rtc - CS is HIGH for active - unusual - is this correct?
+  ;;
+  lda #CS
+  tsb SPI_PORT
   
   lda SPI_BYTE
   sta SPI_TX_BYTE
   jsr spi_transceive
   sta SPI_RX_BYTE
-  ;lda #$39
  
   ;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-  ;stz SPI_PORT
-  ;stz SPI_PORT
-  
-  
-  
-  lda #SCK
-  ora SPI_PORT
-  
-  
+
   lda SPI_BYTE + 1
   sta SPI_TX_BYTE + 1
   jsr spi_transceive
   sta SPI_RX_BYTE + 1
-  ;lda #$39
-  ;jsr spi_transceive
   
-  ;pha
+  ;;; for ds1306 CS is low for idle
   lda #CS
   trb SPI_PORT
-  ;pla
+    
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   lda TICKS
   sta SPI_LAST
   
   rts
-
-;clock_via_3:
-;  sec
-;  lda TICKS
-;  sbc LED2_LAST
-;  cmp #100
-;  bcc exit_clock_via_3
-;  
-;  lda TEN_SECONDS
-;  asl
-;  asl
-;  asl
-;  asl
-;  ora SECONDS
-;  sta PORTB_3
-;
-;@exit:
-;  lda TICKS
-;  sta LED2_LAST
-;exit_clock_via_3:
-;  rts
 
 
 update_spi_monitor:
@@ -463,37 +438,27 @@ update_spi_monitor:
   jsr lcd_2_clear
   
   jsr lcd_2_line_1
-  ;lda #'s'
-  ;jsr print_2_char
-  
   
   lda #'T'
   jsr print_2_char
   lda #'X'
   jsr print_2_char
-  ;lda #':'
-  ;jsr print_2_char
+  
   lda #' '
   jsr print_2_char
   
-  
-  ;lda SPI_TX_BYTE + 1
-  ;jsr print_2_char
-  ;lda #' '
-  ;jsr print_2_char
   lda #'$'
   jsr print_2_char
+  
   lda SPI_TX_BYTE
-  
   jsr bintohex_2
+  
   lda #' '
   jsr print_2_char
-  ;lda SPI_TX_BYTE
-  ;jsr print_2_char
-  ;lda #' '
-  ;jsr print_2_char
+ 
   lda #'$'
   jsr print_2_char
+  
   lda SPI_TX_BYTE + 1
   jsr bintohex_2
   
@@ -512,36 +477,24 @@ update_spi_monitor:
   jsr print_2_char
   
   jsr lcd_2_line_2
-  ;lda #'s'
-  ;jsr print_2_char
   
   lda #'R'
   jsr print_2_char
   lda #'X'
   jsr print_2_char
-  ;lda #':'
-  ;jsr print_2_char
+  
   lda #' '
   jsr print_2_char
   
-  ;lda SPI_RX_BYTE
-  ;jsr print_2_char
-  ;lda #' '
-  ;jsr print_2_char
   lda #'$'
   jsr print_2_char
-  lda SPI_RX_BYTE
   
+  lda SPI_RX_BYTE
   jsr bintohex_2
   
   lda #' '
   jsr print_2_char
 
-  
-  ;lda SPI_RX_BYTE + 1
-  ;jsr print_2_char
-  ;lda #' '
-  ;jsr print_2_char
   lda #'$'
   jsr print_2_char
   
@@ -556,8 +509,6 @@ update_spi_monitor:
   lda SPI_RX_BYTE
   sta VALUE + 1
   jsr print_value
-  
-  ;; and print it
   
  
   lda #<num_message

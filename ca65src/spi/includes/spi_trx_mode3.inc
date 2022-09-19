@@ -11,9 +11,6 @@ MOSI  = %00000010
 CS    = %00000100
 MISO  = %01000000
 
-
-
-
 spi_transceive:
   
   stz spiin
@@ -21,8 +18,6 @@ spi_transceive:
   sta spiout
   ldy #08
   
-  lda #CS
-  tsb SPI_PORT
   lda #MOSI
 
 spi_loop:
@@ -38,11 +33,9 @@ spi_1:
   tsb SPI_PORT
 
 spi_2:
-  
-  ;pha
-  ;lda #SCK
-  ;trb SPI_PORT
-  ;pla
+  ;; MODE 1 & Mode 3
+  ;; CPHA 1 = read on falling edge
+  ;; PUT A BRANCH HERE TO MAKE SWAPPING MODES EASIER?
   dec SPI_PORT
   
   bit SPI_PORT
@@ -53,23 +46,17 @@ spi_2:
 spi_3:
   
   rol spiin
-  
-  ;pha
-  ;lda #SCK
-  ;tsb SPI_PORT
-  ;pla
-  
+  ;; MODE 1 & MODE 3
+  ;; CPHA 1 = shif new data outon rising edge
+  ;; PUT A BRANCH HERE TO MAKE SWAPPING MODES EASIER?
   inc SPI_PORT
   
   dey
   bne spi_loop
   lda spiin
   clc
-  ;jsr print_char
+  
   sta PORTA_2
-  
-  
-  
   
   rts
   
