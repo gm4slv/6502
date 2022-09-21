@@ -71,8 +71,6 @@ S_CON_1   = ACIA_1 + 3  ; Control
 
 
 via_1_init:
-
-
   
   lda #%10011010  ; CB2, CA1 active
   sta IER_1

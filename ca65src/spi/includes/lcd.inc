@@ -18,6 +18,7 @@ RS = %00010000
 ;;
 
 lcd_start:
+
   lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
   jsr lcd_instruction
   lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
@@ -34,56 +35,53 @@ lcd_start:
   ;rts
 
 lcd_entry_mode:
-  lda #%00000110 ; Increment and shift cursor; don't shift display
-  ;jsr lcd_instruction
-  ; CONSIDER CHANGE
-  jmp lcd_instruction
-  ;rts
+
+  lda #%00000110 ; Increment and shift cursor; don't shift display  
+  jmp lcd_instruction   ; (jsr/rts)
+  
 
 lcd_home:
+  
   lda #%00000010 ; cursor HOME
-  ; CONDSIDER CHANGE
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction ; (jsr/rts)
+  
 
 lcd_add0:
+
   lda #%10000000 ; back to zero position
-  ; CONSIDER CHANGE
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction     ; (jsr/rts)
+
 
 lcd_clear:
+
   lda #%00000001 ; Clear display
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction   ; (jsr/rts)
+  
 
 lcd_cursor_off:
+
   lda #%00001100 ; Display on; cursor off; blink off
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction   ; (jsr/rts)
+ 
 
 lcd_cursor_on:
+
   lda #%00001111 ; Display on; cursor on; blink on
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction   ; (jsr/rts)
+
 
 lcd_line_1:
+
   lda #($80)
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
+  jmp lcd_instruction   ; (jsr/rts)
+  
 
 lcd_line_2:
-  lda #($80 + $40)
-  jmp lcd_instruction
-  ;jsr lcd_instruction
-  ;rts
 
+  lda #($80 + $40)
+  jmp lcd_instruction   ; (jsr/rts)
+ 
+ 
 lcd_line_3:
   lda #($80 + $14)
   jmp lcd_instruction

@@ -14,10 +14,8 @@
 print_value:
   
   stz num_message
-  
-  
+    
    ; clear the string to hold the result
-
   
 divide:
 
@@ -103,12 +101,8 @@ ignore_result:
 ;; lda #>num_message
 ;; sta MESSAGE_POINTER + 1
 ;; jsr 'print' (i.e. whichever print function we need to put the number on the correct LCD line)
-
   
   rts
-
-
-  
 
 ;  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -116,11 +110,13 @@ ignore_result:
 ;; put each digit onto the num_message string at the end - the string is shuffled
 ;; each time to build it "backwards"
 
-
 push_char:
+
   pha
   ldy #0
+
 char_loop:
+
   lda num_message,y
   tax
   pla

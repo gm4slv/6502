@@ -1,9 +1,5 @@
 
-
   .code
-
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -65,16 +61,9 @@ beep_from_list:
   
   lda #%11000000
   sta ACR_2
-  ;jsr beep_on 
-  ; CONSIDER Change:
-  ;
-  ; jsr beep_on
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp beep_on
-  ;rts
+  
+  jmp beep_on   ; (jsr/rts)
+
   
 beep:
 
@@ -84,19 +73,11 @@ beep:
   sta T1CL_2
   lda #>count_800
   sta T1CH_2
-  ;jsr beep_on
-  ; CONSIDER Change:
-  ;
-  ; jsr beep_on
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp beep_on
- 
-  ;rts
   
+  jmp beep_on   ; (jsr/rts)
+ 
 beep_on:
+ 
     lda TICKS
     sta BEEP_ON_TIME
     lda #%11000000
@@ -105,35 +86,24 @@ beep_on:
     rts
     
 beep_off:
+
   rmb7 FLAGS
   lda #%01000000
   sta ACR_2
   lda #$0A              ; restore standard 0.1s Beep length in case the caller had set a
-  sta BEEP_DELAY_TIME   ; new BEEP_DELAY_TIME
-  
+  sta BEEP_DELAY_TIME   ; new BEEP_DELAY_TIME  
   rts
 
 beep_from_pointer:  ; put the 2 bytes for the required count into BEEP_POINTER and BEEP_POINTER + 1 and then
                     ; call beep_from_pointer
 
-  
   lda BEEP_POINTER 
   sta T1CL_2
   lda BEEP_POINTER + 1
   sta T1CH_2
 
-  ;jsr beep_on
-  ; CONSIDER Change:
-  ;
-  ; jsr beep_on
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp beep_on
+  jmp beep_on   ; (jsr/rts)
   
-  ;rts  
-
 beep2: ; high/low beep for boot-up success notification
   
 ; 1kHz
@@ -146,7 +116,7 @@ beep2: ; high/low beep for boot-up success notification
   sta ACR_2
   
   jsr beep_delay
-  ;jsr beep
+
 ; 800Hz
   lda #<count_800
   sta T1CL_2
@@ -166,6 +136,7 @@ beep2: ; high/low beep for boot-up success notification
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 beep_delay:
+
   ldx #$ff
   ldy #$38  ; <= set here to adjust the beep length
 @loop:
@@ -176,9 +147,6 @@ beep_delay:
   bne @loop
   rts
 
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;          convert an 8-bit binary number from Accumulator, in range 00000000 -> 11111111 ($00 to $FF)
@@ -188,6 +156,7 @@ beep_delay:
 
 
 bintohex:
+
   pha
   lsr
   lsr
@@ -206,6 +175,7 @@ bintohex:
 hexascii: .byte "0123456789ABCDEF"
 
 bintohex_2:
+
   pha
   lsr
   lsr
@@ -218,15 +188,17 @@ bintohex_2:
   and #$0f
   tax
   lda hexascii,x
-  jsr print_2_char
-  rts
+  
+  jmp print_2_char  ; (jsr/rts)
+  
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;    convert a binary (hex) value in Accumulator into
 ;;    its ASCII equivalent character in decimal 0-99 and print it
 ;;    this converts hex/binary numbers from the RTC into human readable
 ;;    decimal for display on clock
-
 
 bintoascii:
 
@@ -240,20 +212,18 @@ bintoascii:
   inx
 
   lda binascii,x
-  ;jsr print_char
-  ; CONSIDER CHANGE
-  jmp print_char
-  ;rts
+
+  jmp print_char    ; (jsr/rts)
+
 
 single_figure:
+
   asl
   tax
   inx
   lda binascii,x
-  ;jsr print_char
-  ;CONSIDER CHANGE
-  jmp print_char
-  ;rts
+  jmp print_char    ; (jsr/rts)
+  
 
 bintoascii_2:
 
@@ -267,23 +237,17 @@ bintoascii_2:
   inx
 
   lda binascii,x
-  ;jsr print_2_char
-  ; CONSIDER CHANGE
-  jmp print_2_char
-  ;rts
 
+  jmp print_2_char    ; (jsr/rts)
+  
 single_figure_2:
+
   asl
   tax
   inx
   lda binascii,x
-  ;jsr print_2_char
-  ; CONSIDER CHANGE
-  jmp print_2_char
-  ;rts
-
-
-
+  
+  jmp print_2_char    ; (jsr/rts)
   
 
 binascii: .byte "00010203040506070809"

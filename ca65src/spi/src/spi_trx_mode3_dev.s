@@ -1,16 +1,5 @@
 ;;
-;; DEV updates:
-;;
-;;1) pre-load USER MEM @ user_ram
-;;
-;;2) set new VIAs for OUTPUT on both ports A & B
-;;
-;;3) TESTING new VIAS with flashing LEDs on all ports
-;;
-;;4) Add second LCD on VIA_2 PORTA_2 ?
-;;
-;;5) BEEP using VIA2 T1 on PORTB_2 bit 7
-;;
+
 
 .zeropage
 
@@ -32,10 +21,10 @@ SECONDS:          .res 1
 MEM_POINTER:      .res 2
 LED2_LAST:        .res 1
 SPI_LAST:         .res 1
-LAST_KIT:         .res 1
 BEEP_ON_TIME:     .res 1
 BEEP_DELAY_TIME:  .res 1 ; $01 = 1 tick ~10ms, $FF = 255 ticks ~2.5 seconds
 SPI_BYTE:         .res 2
+MAX_PAGE:         .res 2
 
 .bss
 
@@ -44,23 +33,15 @@ KEY_PRESS:        .res 4
 BYTE:             .res 2
 TENS:             .res 1
 HUNDREDS:         .res 1
-HEX:              .res 2
-HEXB:             .res 2
-TEMP:             .res 1
-TEMP2:            .res 1
+TEMP:             .res 2 ; 2 byte scratchpad
+TEMP2:            .res 2 ; 2 byte scratchpad
 HI_DIGIT:         .res 1
 LO_DIGIT:         .res 1
-
 VALUE:            .res 2
 MOD10:            .res 2
 num_message:      .res 6
-
-
-
-
-spiin: .res 1
-spiout: .res 1
-
+SPIIN:            .res 1
+SPIOUT:           .res 1
 SPI_TX_BYTE:      .res 2
 SPI_RX_BYTE:      .res 2
 
@@ -80,9 +61,6 @@ SPI_RX_BYTE:      .res 2
 .include "../includes/printval.inc"
 
 
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;         START HERE
@@ -91,20 +69,23 @@ SPI_RX_BYTE:      .res 2
 
 .code
 
-
-
-
-  
-  
 reset:
-
 
   ldx #$ff
   txs
   cli      ; interrupts ON
   
+  jsr via_1_init
+  lda #%00000000  ; 
+  sta IER_1       ; stop Keypad or buttons triggering interrupts until we're ready for them
   
-  ;; LCD 
+  lda #%00000000  ; 
+  sta DDRA_1      ; disable keypad until we're ready for it
+  
+  lda #%00000000
+  sta ACR_2       ; disable VIA T1 driven beep noises until we're ready for them
+  
+  
   jsr lcd_start ; set-up various features of lcd 
   jsr lcd_2_start ; set-up various features of lcd 
 
@@ -145,22 +126,30 @@ init_variables:
   stz MEM_POINTER + 1
   stz HI_DIGIT
   stz LO_DIGIT
-  lda #$10
-  sta LAST_KIT
+  stz MOD10
+  stz MOD10 + 1
+  stz VALUE
+  stz VALUE + 1
+  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;    First Signs of Life
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   lda #<title
   sta MESSAGE_POINTER
   lda #>title
   sta MESSAGE_POINTER + 1
   jsr print1
-  stz MOD10
-  stz MOD10 + 1
-  stz VALUE
-  stz VALUE + 1
-  
-  
 
-memory_test:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  Find extent of usable RAM
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+memory_count:
 
   lda #<mem_start_msg
   sta MESSAGE_POINTER
@@ -168,67 +157,169 @@ memory_test:
   sta MESSAGE_POINTER + 1
   jsr print2
   
+  
+;; Write $55 to each memory location until it fails
+;; to be read correctly = top of RAM area
+
+;; Test between $0200 and $FFFF
+  
+  lda #$02            ; start at $0200
+  sta MEM_POINTER + 1
+  ldy #$00
+  
+count_loop_ram:
+
+  lda #$55              ; test with 01010101
+  sta (MEM_POINTER),y   ; write test value to RAM
+  lda #$FF              ; remove test value from A
+  lda (MEM_POINTER),y   ; read RAM contents into A
+  cmp #$55                  
+  bne count_done_ram    ; FAILS at first address after top of RAM
+
+  iny
+  beq count_next_page
+
+  jmp count_loop_ram
+  
+count_next_page:
+
+  lda MEM_POINTER + 1
+  inc
+  cmp #$FF            ; endstop page = top of 6502 Address Space!
+  beq count_done_ram
+  
+  sta MEM_POINTER + 1
+  jmp count_loop_ram
+
+count_done_ram:
+
+  sta MAX_PAGE        ; last successful RAM Page stored for
+                      ; subsequent RAM clear end point
+
+ ;; calculate total number of usable bytes in RAM ($0000 -> $[MEM_POINTER+1 MEM_POINTER] + y )
+
+  tya
+  clc
+  adc MEM_POINTER
+  sta VALUE           ; store for print_value function 
+  sta MEM_POINTER     ; store for later
+  lda MEM_POINTER + 1
+  adc #0
+  sta VALUE + 1       ; store for print_value function
+  sta MEM_POINTER + 1 ; store for later
+  clc
+  
+  jsr print_value     ; convert 2-bytes of VALUE into a decimal number of useable RAM bytes
+  
+  lda #<num_message   ; and print it
+  sta MESSAGE_POINTER
+  lda #>num_message
+  sta MESSAGE_POINTER + 1
+  jsr print4
+  
+  lda #' '
+  jsr print_char
+  lda #'B'
+  jsr print_char
+  lda #'y'
+  jsr print_char
+  lda #'t'
+  jsr print_char
+  lda #'e'
+  jsr print_char
+  lda #'s'
+  jsr print_char
+  
+  lda #' '
+  jsr print_char
+  lda #'('
+  jsr print_char
+  lda #'$'
+  jsr print_char
+  
+  sec               ; the actual "Top of RAM" found is the first UNusable byte, so we
+  lda MEM_POINTER   ; want the "one before that" to show where the real "Top of RAM"
+  sbc #$01          ; is, so subtract 1 from the 2-byte MEM_POINTER just arrived at above
+  sta TEMP
+  lda MEM_POINTER + 1
+  sbc #$0
+  sta TEMP + 1
+  
+  lda TEMP + 1
+  jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
+  
+  lda TEMP
+  jsr bintohex
+  lda HI_DIGIT
+  jsr print_char
+  lda LO_DIGIT
+  jsr print_char
+
+  lda #')'
+  jsr print_char
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Clear RAM of the "$55" put in duing the Mem Count above. 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+memory_zero:
+ 
 ;; test then clear RAM between 
 ;; $0200 - $3FFF - avoids the ZP and STACK areas
 
   lda #$02            ; start at $0200
   sta MEM_POINTER + 1
+
   ldy #$00
+
 loop_ram:
-  lda #$AA              ; test with 10101010
-  sta (MEM_POINTER),y   ; write test value to RAM
-  lda #$FF              ; remove test value from A
-  lda (MEM_POINTER),y   ; read RAM contents into A
-  cmp #$AA              ; compare to expected value
-  bne mem_fail_1
-  lda #$55              ; repeat test with 01010101
-  sta (MEM_POINTER),y
-  lda #$FF
-  lda (MEM_POINTER),y
-  cmp #$55
-  bne mem_fail_2
-  lda #$00              ; clear RAM to all zeros
+
+  lda #$00              ; clear RAM with 00000000
   sta (MEM_POINTER),y
   iny
   beq next_page
+
   jmp loop_ram
+  
 next_page:
+  
   lda MEM_POINTER + 1
   inc
-  cmp #$40
+  cmp MAX_PAGE
   beq done_ram
+  
   sta MEM_POINTER + 1
   jmp loop_ram
 
 done_ram:
-  
-  ;; IOPORTS - initialize after MEM check.
-  ;; prevents spurious beeps until everthing is ready...
-  
-  jsr via_1_init ; set-up VIA_1 for LCD/Keypad 
+
+  lda #<mem_complete_msg
+  sta MESSAGE_POINTER
+  lda #>mem_complete_msg
+  sta MESSAGE_POINTER + 1
+  jsr print3 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  
+;;      IOPORTS - re-initialize after MEM check.
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  jsr via_1_init
   jsr via_2_init ; set-up VIA_2 for general I/O
   jsr via_3_init ; set-up VIA_3 for general I/O
  
   ;; now make a beep-boop
   jsr beep2
   
-  lda #<mem_pass_msg
-  sta MESSAGE_POINTER
-  lda #>mem_pass_msg
-  sta MESSAGE_POINTER + 1
-  jsr print3 
-  
-  smb5 FLAGS ; SPI Monitor or Clock on LCD2
-  smb2 FLAGS ; SPI TX/RX from VIA_2 port A
-  
-  ;lda #SCK
-  ;tsb SPI_PORT
-  
-  lda #<start_msg
-  sta MESSAGE_POINTER
-  lda #>start_msg
-  sta MESSAGE_POINTER + 1
-  jsr print4
+  smb5 FLAGS ; show Mission Time Clock on LCD2
+  smb2 FLAGS ; start SPI TX/RX from VIA_2 port A
   
   jsr lcd_2_clear
   lda #<emt
@@ -237,46 +328,24 @@ done_ram:
   sta MESSAGE_POINTER + 1
   jsr print2_2
   
-  jmp user_ram
-
-mem_fail_1:
-  jsr beep
-  jsr beep2
-  jsr beep
-  lda #<mem_fail_msg_1
-  sta MESSAGE_POINTER
-  lda #>mem_fail_msg_1
-  sta MESSAGE_POINTER + 1
-  jsr print3
-  jmp loop
-
-mem_fail_2:
-  jsr beep
-  jsr beep2
-  jsr beep
-  lda #<mem_fail_msg_2
-  sta MESSAGE_POINTER
-  lda #>mem_fail_msg_2
-  sta MESSAGE_POINTER + 1
-  jsr print3
-  jmp loop
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;  load the User RAM area $3F00 with the bytes 
+;;  Put a sample program into "User Ram" at $3F00
+;;
+;;  Load the User RAM area at $3F00-> with the bytes 
 ;;  set in "userProg" - currently a small routine that
-;;  changed the contents of MESSAGE_POINTER (+1) to point
-;;  at $2000 instead. Then a string "userPrompt" is stored
+;;  changes the contents of MESSAGE_POINTER (+1) to point
+;;  to $2000 instead. Then a string from "userPrompt" is stored
 ;;  at $2000. Running the user sub-routine (<shift>5) will now show
 ;;  the "userPrompt" string on line4 of the main LCD
-;;  The user prog at $3F00 can be edited at will - it also has the
-;;  location of "print4" automatically inserted.
+;;  The user prog at $3F00 can be edited at will 
 ;;
+;; 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Put a sample program into "User Ram" at $3F00
 user_ram:
+
   ldy #$00
 @loop:
   lda userProg,y
@@ -286,8 +355,10 @@ user_ram:
   jmp @loop
 @exit:
 
-;; Put a sample text string in "User Text" @ $2000
-prompt:
+;; Put a sample text string @ $2000->
+
+user_prompt:
+
   ldy #$00
 @loop:
   lda userPrompt,y
@@ -296,13 +367,14 @@ prompt:
   iny
   jmp @loop
 @exit:
+  lda #$00      ; plus a trailing NULL just in case....
+  sta $2000,y
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  
 ;;                 Main Loop
 ;;
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 loop:
 
@@ -318,7 +390,7 @@ loop:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;     FLAGS - for control of background tasks
 ;;
@@ -328,19 +400,23 @@ loop:
 ;;   sound   |        | or      |       |      | tx/rx  |      | view
 ;;   started |        | clock(1)|       |      | active |      | update
 ;;   
-         
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 check_flags:
 
-lda FLAGS
-sta PORTB_3
+  ;; show FLAGS on LEDs, just for fun
+  lda FLAGS
+  sta PORTB_3
 
 flag_zero:
+
   bbr0 FLAGS, flag_one
   jsr update_block_address
 
 flag_one:
 
 flag_two:
+
   bbr2 FLAGS, flag_three
   jsr spi_portb_2
 
@@ -351,23 +427,26 @@ flag_four:
 flag_six:
 
 flag_seven:
+
   bbr7 FLAGS, flag_five
   jsr check_beep
 
 flag_five:
+
   bbr5 FLAGS, no_flag_five  
-  jsr clock_time
-  
-  rts
+  jmp clock_time            ; (jsr/rts)
+  ;rts
   
 no_flag_five:
-  jsr update_spi_monitor
-  rts
+
+  jmp update_spi_monitor    ; (jsr/rts)
+  ;rts
   
 ;;;;;;;;;;
 ;;;;;;;;;;
 ;;;
 check_beep:
+
   sec
   lda TICKS
   sbc BEEP_ON_TIME
@@ -382,11 +461,9 @@ spi_portb_2:
   sec
   lda TICKS
   sbc SPI_LAST
-  cmp #10 
+  cmp #50 
   bcs @spi_tx_rx
   rts
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 @spi_tx_rx:
   
@@ -394,37 +471,49 @@ spi_portb_2:
   ;; MODE 2 and MODE 3
   ;; PUT A BRANCH HERE TO MAKE SWAPPING MODES EASIER?
   ;;
+
   lda #SCK
   tsb SPI_PORT
-  
+
+;;;;;;;;;; CS Signal -> ACTIVE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
   ;; for ds1306 rtc - CS is HIGH for active - unusual - is this correct?
   ;;
+
   lda #CS
   tsb SPI_PORT
-  
+
+;;;;;;;;; First Byte ;;;;;;;;;;;;;;;;;
+
   lda SPI_BYTE
   sta SPI_TX_BYTE
   jsr spi_transceive
   sta SPI_RX_BYTE
  
-  ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; Second Byte  ;;;;;;;;;;;;;;;
 
   lda SPI_BYTE + 1
   sta SPI_TX_BYTE + 1
   jsr spi_transceive
   sta SPI_RX_BYTE + 1
+
+;;;;; CS signal -> IDLE ;;;;;;;;;;;;;;;;;
   
   ;;; for ds1306 CS is low for idle
+
   lda #CS
   trb SPI_PORT
     
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   lda TICKS
   sta SPI_LAST
   
   rts
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
 
 update_spi_monitor:
   sec
@@ -518,18 +607,22 @@ update_spi_monitor:
   ldy #0
   jsr line2
   
-  
-  
   lda TICKS
   sta CLOCK_LAST
   rts
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
+;;
+
 update_block_address:
+
   jsr lcd_line_2
   sec
   lda TICKS
   sbc TOGGLE_TIME
-  cmp #$64
+  cmp #100
   bcc @exit
   jsr block_address
   lda TICKS
@@ -537,7 +630,13 @@ update_block_address:
 @exit:
   rts
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
+;;
+
 clock_time:
+
   sec
   lda TICKS
   sbc CLOCK_LAST
@@ -589,7 +688,9 @@ clock_time:
 ;;      update screen when new memory location is selected
 ;;
 ;;
+
 new_address:
+
   jsr lcd_clear
   jsr lcd_cursor_on
   lda #<new_address_msg
@@ -598,7 +699,9 @@ new_address:
   sta MESSAGE_POINTER + 1
   jsr print1
   jsr lcd_line_2
+
 print_address:
+
   lda #'$'
   jsr print_char
   lda DUMP_POINTER + 1
@@ -634,6 +737,7 @@ print_address:
   
   ;;;;;;;;;;;;;;
   ;;
+
   lda (DUMP_POINTER),y
   sta VALUE
   stz VALUE + 1
@@ -646,15 +750,14 @@ print_address:
   jsr line
   
   ;;;;;;;;;;;;;;;;;;;;;
+
 new_cursor:
+
   lda #<splash
   sta MESSAGE_POINTER
   lda #>splash
   sta MESSAGE_POINTER + 1
   jmp print4   ; (jsr / rts)
-  ;jsr print3   ; add cursor after re-writing the address/data line
-  ;rts
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -845,8 +948,8 @@ keys_byte:
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;show_clock:
 clock_or_spi:
+
   bbs5 FLAGS, reset_bit5
   smb5 FLAGS
   lda #<emt
@@ -855,18 +958,15 @@ clock_or_spi:
   sta MESSAGE_POINTER + 1
   jsr print2_2
   jmp exit_clock_or_spi
+
 reset_bit5:
+
   rmb5 FLAGS
-  ;lda #<pause_msg
-  ;sta MESSAGE_POINTER
-  ;lda #>pause_msg
-  ;sta MESSAGE_POINTER + 1
-  ;jsr print2_2
-  ;jsr update_spi_monitor
+  
 exit_clock_or_spi:
+  
   rts
   
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -878,9 +978,13 @@ show_block:
   bbs0 FLAGS, reset_bit0
   smb0 FLAGS
   jmp exit_show_block
+
 reset_bit0:
+
   rmb0 FLAGS
+
 exit_show_block:
+
   rts
   
   
@@ -894,10 +998,14 @@ update_spi:
   bbs2 FLAGS, reset_bit2
   smb2 FLAGS
   jmp exit_update_spi
+
 reset_bit2:
+
   rmb2 FLAGS
   stz PORTA_2
+
 exit_update_spi:
+
   rts
 
 
@@ -917,6 +1025,7 @@ exit_update_spi:
 
 
 reset_met:
+
   stz HUNDRED_HRS
   stz TEN_HRS
   stz TEN_MINUTES
@@ -933,38 +1042,20 @@ reset_met:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 cb1_handler:
 
-  ;lda #$04
   lda #$05
   sta BEEP_DELAY_TIME
-  ;jsr beep_from_pointer
+
+  jmp beep_from_pointer  ; (jsr/rts)
   
-  ; CONSIDER Change:
-  ;
-  ; jsr beep_from_pointer
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp beep_from_pointer
-  
-  ;rts
   
 cb2_handler:
+
   lda #$40
   sta BEEP_DELAY_TIME
   lda #$02 ; tone # = 100Hz
-  ;jsr beep_from_list
-  ; CONSIDER Change:
-  ;
-  ; jsr beep_from-list
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp beep_from_list
+ 
+  jmp beep_from_list    ; (jsr/rts)
   
-  ;rts
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1014,11 +1105,7 @@ check_c:
   ; return to MONITOR
   bne check_d
   rmb0 FLAGS
-  jsr lcd_clear
-  ;lda #<splash
-  ;sta MESSAGE_POINTER
-  ;lda #>splash
-  ;sta MESSAGE_POINTER + 1  
+  jsr lcd_clear  
   jsr beep
   jsr new_address
   jmp exit_key_irq
@@ -1083,6 +1170,7 @@ check_2:
 check_3:
 
   cmp #$03
+  ; move up a block of 8
   bne check_6
   ldy #$00
   jsr increment_block
@@ -1093,6 +1181,7 @@ check_3:
 check_6:
 
   cmp #$06
+  ; move down a block of 8
   bne check_9
   ldy #$00
   jsr decrement_block
@@ -1103,6 +1192,7 @@ check_6:
 check_9:
 
   cmp #$09
+  ; show updating block of memory  
   bne check_4
   jsr beep
   jsr show_block
@@ -1119,7 +1209,6 @@ check_4:
   sta SPI_BYTE + 1
   jsr beep
   jsr new_address
-  ;jsr update_spi
   jmp exit_key_irq
 
 check_5:
@@ -1132,6 +1221,7 @@ check_5:
   jmp exit_key_irq
 
 check_0:
+
   cmp #$00
   ; run/pause SPI TX & RX
   bne exit_key_irq
@@ -1157,20 +1247,12 @@ handle_new_char:
  
 exit_key_irq:
 
-  ;jsr scan  ; re-enable keypad
-  ; CONSIDER Change:
-  ;
-  ; jsr scan
-  ; rts
-  ;
-  ; becomes
-  ; 
-  jmp scan
-  ;rts
-
+  jmp scan    ; (jsr/rts)
+  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 nmi:
+ 
   pha
   phx
   phy
@@ -1180,12 +1262,13 @@ nmi:
   jmp exit_nmi
 
 exit_nmi:
+ 
   ply
   plx
   pla
   rti
   
-  rti
+ 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1223,6 +1306,7 @@ irq:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 test_cb1:
+
   asl
   asl
   asl
@@ -1274,8 +1358,9 @@ emt: .asciiz "Mission Time    "
 splash: .asciiz "shed> "
 mem_start_msg: .asciiz "Begin RAM Test"
 mem_pass_msg: .asciiz "RAM Test Pass"
-mem_fail_msg_1: .asciiz "RAM Test 1 Fail"
-mem_fail_msg_2: .asciiz "RAM Test 2 Fail"
+mem_complete_msg: .asciiz "Memory Test Complete"
+
+
 
 userPrompt: .asciiz "This is shed! "
 
