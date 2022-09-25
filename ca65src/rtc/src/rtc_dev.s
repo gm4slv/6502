@@ -45,6 +45,15 @@ SPIOUT:           .res 1
 SPI_TX_BYTE:      .res 2
 SPI_RX_BYTE:      .res 2
 
+RTC_SEC:           .res 1
+RTC_MIN:           .res 1
+RTC_HRS:           .res 1
+RTC_DAY:           .res 1
+RTC_DATE:          .res 1
+RTC_MONTH:         .res 1
+RTC_YEAR:          .res 1
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;        INCLUDES 
@@ -318,15 +327,15 @@ done_ram:
   ;; now make a beep-boop
   jsr beep2
   
-  smb5 FLAGS ; show Mission Time Clock on LCD2
+  ;smb5 FLAGS ; show Mission Time Clock on LCD2
   smb2 FLAGS ; start SPI TX/RX from VIA_2 port A
   
   jsr lcd_2_clear
-  lda #<emt
-  sta MESSAGE_POINTER
-  lda #>emt
-  sta MESSAGE_POINTER + 1
-  jsr print2_2
+  ;lda #<emt
+  ;sta MESSAGE_POINTER
+  ;lda #>emt
+  ;sta MESSAGE_POINTER + 1
+  ;jsr print2_2
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -462,10 +471,18 @@ spi_portb_3:
   lda TICKS
   sbc SPI_LAST
   cmp #50 
-  bcs @spi_tx_rx
+  bcs spi_rtc
   rts
+  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
+;;   RTC Update from DS1306 via SPI 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-@spi_tx_rx:
+
+spi_rtc:
   
   ;; CLOCK HIGH IDLE CPOL = 1
   ;; MODE 2 and MODE 3
@@ -485,18 +502,29 @@ spi_portb_3:
 
 ;;;;;;;;; First Byte ;;;;;;;;;;;;;;;;;
 
-  lda SPI_BYTE
-  sta SPI_TX_BYTE
+  lda #$00
   jsr spi_transceive
-  sta SPI_RX_BYTE
- 
-;;;;;;;;;; Second Byte  ;;;;;;;;;;;;;;;
+  sta RTC_SEC ; will be bogus?
 
-  lda SPI_BYTE + 1
-  sta SPI_TX_BYTE + 1
+;; continue sending (data irrelavant) and reading sequential 
+;; replies from RTC Chip containing BCD coded SEC/MIN/HRS... etc
+
+  lda #$00
   jsr spi_transceive
-  sta SPI_RX_BYTE + 1
-
+  sta RTC_SEC
+  jsr spi_transceive
+  sta RTC_MIN
+  jsr spi_transceive
+  sta RTC_HRS
+  jsr spi_transceive
+  sta RTC_DAY
+  jsr spi_transceive
+  sta RTC_DATE
+  jsr spi_transceive
+  sta RTC_MONTH
+  jsr spi_transceive
+  sta RTC_YEAR
+  
 ;;;;; CS signal -> IDLE ;;;;;;;;;;;;;;;;;
   
   ;;; for ds1306 CS is low for idle
@@ -511,101 +539,115 @@ spi_portb_3:
   
   rts
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  MANUAL SPI TRANSMIT
+
+spi_tx_rx:
+
+;; CLOCK HIGH IDLE CPOL = 1
+  ;; MODE 2 and MODE 3
+  ;; PUT A BRANCH HERE TO MAKE SWAPPING MODES EASIER?
+  ;;
+
+  lda #SCK
+  tsb SPI_PORT
+
+;;;;;;;;;; CS Signal -> ACTIVE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  ;; for ds1306 rtc - CS is HIGH for active - unusual - is this correct?
+  ;;
+
+  lda #CS
+  tsb SPI_PORT
+
+  lda SPI_BYTE
+  jsr spi_transceive
+  
+  lda SPI_BYTE + 1
+  jsr spi_transceive
+  
+  lda #CS
+  trb SPI_PORT
+    
+  rts
+  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;
 
 update_spi_monitor:
+
   sec
   lda TICKS
   sbc CLOCK_LAST
   cmp #100
   bcs @do_update
   rts
+  
 @do_update:
+  
   jsr lcd_2_cursor_off
   jsr lcd_2_clear
   
   jsr lcd_2_line_1
   
-  lda #'T'
-  jsr print_2_char
-  lda #'X'
-  jsr print_2_char
+
+
   
-  lda #' '
-  jsr print_2_char
   
-  lda #'$'
-  jsr print_2_char
-  
-  lda SPI_TX_BYTE
+  lda RTC_DATE
   jsr bintohex_2
   
-  lda #' '
+  lda #'/'
   jsr print_2_char
+  
+  lda RTC_MONTH
+  jsr bintohex_2
+  
+  lda #'/'
+  jsr print_2_char
+  
+  lda RTC_YEAR
+  jsr bintohex_2
+  
  
-  lda #'$'
-  jsr print_2_char
-  
-  lda SPI_TX_BYTE + 1
-  jsr bintohex_2
+
   
   lda #' '
   jsr print_2_char
-  lda #$7F
-  jsr print_2_char
-  lda #'S'
-  jsr print_2_char
-  lda #'P'
-  jsr print_2_char
-  lda #'I'
-  jsr print_2_char
   
-  lda #$7E
+  lda RTC_DAY
+  sta TEMP + 3
+  asl
+  adc TEMP + 3
+  tay
+  ldx #3
+@loopday:
+  lda dowList,y
   jsr print_2_char
+  iny
+  dex
+  bne @loopday
+  
   
   jsr lcd_2_line_2
   
-  lda #'R'
-  jsr print_2_char
-  lda #'X'
-  jsr print_2_char
-  
-  lda #' '
-  jsr print_2_char
-  
-  lda #'$'
-  jsr print_2_char
-  
-  lda SPI_RX_BYTE
+  lda RTC_HRS
   jsr bintohex_2
   
-  lda #' '
-  jsr print_2_char
-
-  lda #'$'
+  lda #':'
   jsr print_2_char
   
-  lda SPI_RX_BYTE + 1
+  lda RTC_MIN
   jsr bintohex_2
   
-  lda #' '
+  lda #':'
   jsr print_2_char
   
-  lda SPI_RX_BYTE + 1
-  sta VALUE
-  lda SPI_RX_BYTE
-  sta VALUE + 1
-  jsr print_value
-  
- 
-  lda #<num_message
-  sta MESSAGE_POINTER
-  lda #>num_message
-  sta MESSAGE_POINTER + 1
-  ldy #0
-  jsr line2
+  lda RTC_SEC
+  jsr bintohex_2
   
   lda TICKS
   sta CLOCK_LAST
@@ -1211,6 +1253,7 @@ check_4:
   lda BYTE
   sta SPI_BYTE + 1
   jsr beep
+  jsr spi_tx_rx
   jsr new_address
   jmp exit_key_irq
 
@@ -1400,7 +1443,7 @@ mem_start_msg: .asciiz "Begin RAM Test"
 mem_pass_msg: .asciiz "RAM Test Pass"
 mem_complete_msg: .asciiz "Memory Test Complete"
 
-
+dowList: .byte "xxxMonTueWedThuFriSatSun"
 
 userPrompt: .asciiz "This is shed! "
 
