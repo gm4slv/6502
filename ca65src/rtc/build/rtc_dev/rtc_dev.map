@@ -1,7 +1,7 @@
 Modules list:
 -------------
 rtc_dev.o:
-    CODE              Offs=000000  Size=000AB2  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=000A84  Align=00001  Fill=0000
     BSS               Offs=000000  Size=000026  Align=00001  Fill=0000
     ZEROPAGE          Offs=000000  Size=00001F  Align=00001  Fill=0000
     DISPLAY           Offs=000000  Size=0001F8  Align=00001  Fill=0000
@@ -14,7 +14,7 @@ Name                   Start     End    Size  Align
 ----------------------------------------------------
 ZEROPAGE              000000  00001E  00001F  00001
 BSS                   000200  000225  000026  00001
-CODE                  008000  008AB1  000AB2  00001
+CODE                  008000  008A83  000A84  00001
 DISPLAY               00B000  00B1F7  0001F8  00001
 VECTORS               00FFFA  00FFFF  000006  00001
 

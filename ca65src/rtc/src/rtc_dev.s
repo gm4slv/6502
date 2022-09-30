@@ -92,7 +92,7 @@ reset:
   sta DDRA_1      ; disable keypad until we're ready for it
   
   lda #%00000000
-  sta ACR_2       ; disable VIA T1 driven beep noises until we're ready for them
+  sta ACR_3       ; disable VIA T1 driven beep noises until we're ready for them
   
   
   jsr lcd_start ; set-up various features of lcd 
@@ -328,7 +328,7 @@ done_ram:
   jsr beep2
   
   ;smb5 FLAGS ; show Mission Time Clock on LCD2
-  smb2 FLAGS ; start SPI TX/RX from VIA_2 port A
+  ;smb2 FLAGS ; start SPI TX/RX from VIA_2 port A
   
   jsr lcd_2_clear
   ;lda #<emt
@@ -389,6 +389,7 @@ loop:
 
   wai
   jsr check_flags
+  jsr spi_portb_3
   jmp loop
 
 
@@ -405,9 +406,9 @@ loop:
 ;;
 ;;   bit7    | bit6   | bit5    |  bit4 | bit3 | bit2   | bit1 | bit0
 ;; ==========|========|=========|=======|======|========|======|===========
-;;   beep    |        | spi(0)  |       |      | spi    |      | mem block
+;;   beep    |        | spi(0)  |       |      | (spi   |      | mem block
 ;;   sound   |        | or      |       |      | tx/rx  |      | view
-;;   started |        | clock(1)|       |      | active |      | update
+;;   started |        | clock(1)|       |      | active)|      | update
 ;;   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -426,8 +427,8 @@ flag_one:
 
 flag_two:
 
-  bbr2 FLAGS, flag_three
-  jsr spi_portb_3
+  ;bbr2 FLAGS, flag_three
+  ;jsr spi_portb_3
 
 flag_three:
 
@@ -1035,20 +1036,20 @@ exit_show_block:
 ;;     toggle the TX/RX of SPI on PORTB_2
 ;;
 
-update_spi:
+;update_spi:
   
-  bbs2 FLAGS, reset_bit2
-  smb2 FLAGS
-  jmp exit_update_spi
+  ;bbs2 FLAGS, reset_bit2
+  ;smb2 FLAGS
+  ;jmp exit_update_spi
 
-reset_bit2:
+;reset_bit2:
 
-  rmb2 FLAGS
-  stz PORTA_2
+  ;rmb2 FLAGS
+  ;stz PORTA_2
 
-exit_update_spi:
+;exit_update_spi:
 
-  rts
+  ;rts
 
 
 
@@ -1093,11 +1094,13 @@ cb1_handler:
   
 cb2_handler:
 
-  lda #$40
-  sta BEEP_DELAY_TIME
-  lda #$02 ; tone # = 100Hz
+  jsr beep
+  jsr clock_or_spi
+  ;lda #$40
+  ;sta BEEP_DELAY_TIME
+  ;lda #$02 ; tone # = 100Hz
  
-  jmp beep_from_list    ; (jsr/rts)
+  ;jmp beep_from_list    ; (jsr/rts)
   ;nop
   rts
   
@@ -1199,8 +1202,8 @@ check_1:
   cmp #$01
   ; pause SPI Monitor on LCD2
   bne check_2
-  jsr beep
-  jsr clock_or_spi
+  ;jsr beep
+  ;jsr clock_or_spi
   jmp exit_key_irq
 
 check_2:
@@ -1208,8 +1211,8 @@ check_2:
   cmp #$02
   ; reset_clock
   bne check_3
-  jsr beep
-  jsr reset_met
+  ;jsr beep
+  ;jsr reset_met
   jmp exit_key_irq
 
 check_3:
@@ -1271,8 +1274,8 @@ check_0:
   cmp #$00
   ; run/pause SPI TX & RX
   bne exit_key_irq
-  jsr beep
-  jsr update_spi
+  ;jsr beep
+  ;jsr update_spi
   jmp exit_key_irq
   
 
@@ -1437,7 +1440,7 @@ new_address_msg: .asciiz "$addr $dd C Dec"
 ;new_address_msg: .asciiz "View/Edit Memory"
 block_address_msg: .asciiz "8 Byte view"
 title: .asciiz "...Shed Brain v1..."
-emt: .asciiz "Mission Time    "
+emt: .asciiz "Uptime    "
 splash: .asciiz "shed> "
 mem_start_msg: .asciiz "Begin RAM Test"
 mem_pass_msg: .asciiz "RAM Test Pass"
